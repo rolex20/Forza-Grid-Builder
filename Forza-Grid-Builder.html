@@ -159,16 +159,49 @@
             justify-content: center;
             font-weight: bold;
             font-size: 14px;
+            pointer-events: none;
         }
 
         .car-header {
             display: flex;
-            align-items: baseline;
+            align-items: center;
             gap: 8px;
         }
 
         .car-year { font-weight: bold; color: var(--accent); }
         .car-title { font-weight: 700; font-size: 1.1rem; line-height: 1.2; }
+
+        .car-header-actions {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .details-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: var(--text-sub);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.15s, color 0.2s, border-color 0.2s;
+            position: relative;
+            z-index: 2;
+        }
+
+        .details-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .details-btn:active {
+            transform: scale(0.96);
+        }
         
         .car-stats {
             display: flex;
@@ -497,6 +530,52 @@
 
         .no-cars-msg { text-align: center; color: #666; margin-top: 50px; font-style: italic; }
 
+        #detailsModal { z-index: 1100; }
+
+        .details-modal {
+            max-width: 900px;
+            max-height: 85vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .details-modal .modal-body {
+            overflow-y: auto;
+        }
+
+        .details-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .details-field {
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 8px 10px;
+            background: #151515;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .details-field-label {
+            font-size: 0.75rem;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+
+        .details-field-value {
+            font-size: 0.9rem;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        @media (min-width: 700px) {
+            .details-fields { grid-template-columns: repeat(2, 1fr); }
+        }
+
     </style>
 </head>
 <body>
@@ -608,6 +687,19 @@
     </div>
 </div>
 
+<!-- Details Modal -->
+<div class="modal-overlay" id="detailsModal" onclick="closeDetailsModal(event)">
+    <div class="modal details-modal">
+        <div class="modal-header">
+            <div class="modal-title" id="detailsModalTitle">Car Details</div>
+            <button class="modal-close" onclick="toggleDetailsModal(false)">×</button>
+        </div>
+        <div class="modal-body" id="detailsModalBody">
+            <!-- Details Content -->
+        </div>
+    </div>
+</div>
+
 <script>
     // --- DATA START ---
     const DATASETS = [
@@ -715,6 +807,7 @@
     let activeModalTab = "restrictions";
     let matchesFilter = "all";
     let matchesSearchQuery = "";
+    let currentDetailsIndex = null;
     let sortConfig = {
         primary: { field: null, dir: "desc" },
         secondary: { field: null, dir: "desc" }
@@ -748,6 +841,9 @@
     const modalViewMatches = document.getElementById('modalViewMatches');
     const modalTabRestrictions = document.getElementById('modalTabRestrictions');
     const modalTabMatches = document.getElementById('modalTabMatches');
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsModalTitle = document.getElementById('detailsModalTitle');
+    const detailsModalBody = document.getElementById('detailsModalBody');
 
     // --- INITIALIZATION ---
     function init() {
@@ -955,6 +1051,9 @@
                 <div class="car-header">
                     <span class="car-year">${car[COL.YEAR]}</span>
                     <span class="car-title">${car[COL.MAKE]} ${car[COL.MODEL]}</span>
+                    <div class="car-header-actions">
+                        <button class="details-btn" title="Details" aria-label="View details" onclick="openCarDetails(${index}, event)">ⓘ</button>
+                    </div>
                 </div>
                 <div class="car-stats">
                     <span class="pi-badge">${piDisplay}</span>
@@ -999,6 +1098,9 @@
         updateUnitToggle();
         renderGrid();
         if (resultModal.classList.contains('open')) analyzeGrid(true); // Refresh modal if open
+        if (detailsModal.classList.contains('open') && currentDetailsIndex !== null) {
+            renderCarDetails(currentDetailsIndex);
+        }
     }
 
     function toggleSelection(index) {
@@ -1025,6 +1127,10 @@
         invalidateVisibleCache();
         updateFab();
         renderGrid();
+        if (detailsModal.classList.contains('open')) {
+            toggleDetailsModal(false);
+        }
+        currentDetailsIndex = null;
         if (resultModal.classList.contains('open')) {
             currentRestrictions = null;
             currentMatches = [];
@@ -1063,6 +1169,146 @@
 
     function closeModal(e) {
         if (e.target === resultModal) toggleModal(false);
+    }
+
+    function toggleDetailsModal(show) {
+        if (show) {
+            detailsModal.classList.add('open');
+        } else {
+            detailsModal.classList.remove('open');
+        }
+    }
+
+    function closeDetailsModal(e) {
+        if (e.target === detailsModal) toggleDetailsModal(false);
+    }
+
+    function openCarDetails(index, evt) {
+        if (evt) {
+            evt.preventDefault();
+            evt.stopPropagation();
+        }
+        currentDetailsIndex = index;
+        renderCarDetails(index);
+        toggleDetailsModal(true);
+    }
+
+    function formatDetailsValue(fieldIndex, value, car) {
+        if (value === null || value === undefined || String(value).trim() === "") {
+            return { type: "text", value: "—" };
+        }
+        if (fieldIndex === COL.HP) {
+            const num = toNumber(value);
+            return { type: "text", value: num === null ? "Unknown" : formatPower(num) };
+        }
+        if (fieldIndex === COL.WEIGHT) {
+            const num = toNumber(value);
+            return { type: "text", value: num === null ? "Unknown" : formatWeight(num) };
+        }
+        if (fieldIndex === COL.PI) {
+            const num = toNumber(value);
+            return {
+                type: "pi",
+                value: formatPiBadge(num, car[COL.CLASS])
+            };
+        }
+        if (fieldIndex === COL.DRIVE) {
+            return { type: "text", value: getDriveLabel(value) };
+        }
+        return { type: "text", value: String(value) };
+    }
+
+    function renderCarDetails(index) {
+        const car = currentCarData[index];
+        if (!car) return;
+        const columns = activeDataset.columns || [];
+        const columnCount = Math.min(columns.length, car.length);
+        const year = car[COL.YEAR] ? String(car[COL.YEAR]).trim() : "";
+        const make = car[COL.MAKE] ? String(car[COL.MAKE]).trim() : "";
+        const model = car[COL.MODEL] ? String(car[COL.MODEL]).trim() : "";
+        detailsModalTitle.textContent = `${year} ${make} ${model}`.trim() || "Car Details";
+
+        detailsModalBody.innerHTML = "";
+
+        const summarySection = document.createElement("div");
+        summarySection.className = "modal-section";
+        const summaryTitle = document.createElement("div");
+        summaryTitle.className = "modal-section-title";
+        summaryTitle.textContent = "Summary";
+        summarySection.appendChild(summaryTitle);
+
+        const summaryStats = document.createElement("div");
+        summaryStats.className = "car-stats";
+
+        const piValue = toNumber(car[COL.PI]);
+        const piClass = car[COL.CLASS];
+        const piBadge = document.createElement("span");
+        const piClassName = piClass && String(piClass).trim() ? `pi-${String(piClass).trim()}` : "";
+        piBadge.className = `pi-badge ${piClassName}`.trim();
+        piBadge.textContent = formatPiBadge(piValue, piClass);
+        summaryStats.appendChild(piBadge);
+
+        const hpValue = toNumber(car[COL.HP]);
+        const hpTag = document.createElement("span");
+        hpTag.className = "stat-tag";
+        hpTag.textContent = hpValue === null ? "Unknown" : formatPower(hpValue);
+        summaryStats.appendChild(hpTag);
+
+        const weightValue = toNumber(car[COL.WEIGHT]);
+        const weightTag = document.createElement("span");
+        weightTag.className = "stat-tag";
+        weightTag.textContent = weightValue === null ? "Unknown" : formatWeight(weightValue);
+        summaryStats.appendChild(weightTag);
+
+        const driveTag = document.createElement("span");
+        driveTag.className = "stat-tag";
+        driveTag.textContent = getDriveLabel(car[COL.DRIVE]);
+        summaryStats.appendChild(driveTag);
+
+        const divisionTag = document.createElement("span");
+        divisionTag.className = "stat-tag";
+        divisionTag.textContent = car[COL.DIVISION] ? String(car[COL.DIVISION]).trim() : "Unknown";
+        summaryStats.appendChild(divisionTag);
+
+        summarySection.appendChild(summaryStats);
+        detailsModalBody.appendChild(summarySection);
+
+        const fieldsSection = document.createElement("div");
+        fieldsSection.className = "modal-section";
+        const fieldsTitle = document.createElement("div");
+        fieldsTitle.className = "modal-section-title";
+        fieldsTitle.textContent = "All Fields";
+        fieldsSection.appendChild(fieldsTitle);
+
+        const fieldsGrid = document.createElement("div");
+        fieldsGrid.className = "details-fields";
+
+        for (let i = 0; i < columnCount; i += 1) {
+            const field = document.createElement("div");
+            field.className = "details-field";
+
+            const label = document.createElement("div");
+            label.className = "details-field-label";
+            label.textContent = columns[i] ? String(columns[i]) : `Field ${i + 1}`;
+            field.appendChild(label);
+
+            const valueWrap = document.createElement("div");
+            valueWrap.className = "details-field-value";
+            const formatted = formatDetailsValue(i, car[i], car);
+            if (formatted.type === "pi") {
+                const piValueEl = document.createElement("span");
+                piValueEl.className = `pi-badge ${piClassName}`.trim();
+                piValueEl.textContent = formatted.value;
+                valueWrap.appendChild(piValueEl);
+            } else {
+                valueWrap.textContent = formatted.value;
+            }
+            field.appendChild(valueWrap);
+            fieldsGrid.appendChild(field);
+        }
+
+        fieldsSection.appendChild(fieldsGrid);
+        detailsModalBody.appendChild(fieldsSection);
     }
 
     function toggleSortModal(show) {
@@ -1333,7 +1579,10 @@
                 <div class="car-header">
                     <span class="car-year">${car[COL.YEAR]}</span>
                     <span class="car-title">${car[COL.MAKE]} ${car[COL.MODEL]}</span>
-                    ${badge}
+                    <div class="car-header-actions">
+                        <button class="details-btn" title="Details" aria-label="View details" onclick="openCarDetails(${index}, event)">ⓘ</button>
+                        ${badge}
+                    </div>
                 </div>
                 <div class="car-stats">
                     <span class="pi-badge">${piDisplay}</span>
