@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Forza Grid Builder v2.1</title>
+    <style>
+        :root {
+            --bg-core: #0f0f0f;
+            --bg-card: #1f1f1f;
+            --bg-floating: rgba(30, 30, 30, 0.95);
+            --accent: #e3ff00; /* Forza Neon Yellow */
+            --accent-dim: #b8cc00;
+            --text-main: #ffffff;
+            --text-sub: #aaaaaa;
+            --border: #333333;
+            --font-stack: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            background-color: var(--bg-core);
+            color: var(--text-main);
+            font-family: var(--font-stack);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 100px; /* Space for floating bar */
+        }
+
+        /* --- Header --- */
+        header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 1px; font-weight: 800; font-style: italic; }
+        h1 span { color: var(--accent); }
+
+        .unit-toggle {
+            font-size: 0.8rem;
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-sub);
+            border: 1px solid #444;
+        }
+        .unit-toggle.active { color: var(--text-main); border-color: var(--accent); }
+
+        /* --- Controls (Sticky) --- */
+        .controls {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: rgba(15, 15, 15, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            display: flex;
+            gap: 10px;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        input[type="text"] {
+            flex: 1;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            outline: none;
+        }
+        input[type="text"]:focus { border-color: var(--accent); }
+
+        .btn-icon {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            width: 46px;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: all 0.2s;
+        }
+        
+        .btn-icon.active {
+            background: var(--accent);
+            color: black;
+            border-color: var(--accent);
+        }
+
+        .dataset-select {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 140px;
+            outline: none;
+        }
+
+        .dataset-select:focus {
+            border-color: var(--accent);
+        }
+
+        /* --- Car Grid --- */
+        .car-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); /* Responsive */
+            gap: 15px;
+            padding: 15px;
+        }
+
+        @media (max-width: 400px) {
+            .car-grid { grid-template-columns: 1fr; }
+        }
+
+        .car-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s, border-color 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .car-card.selected {
+            border: 2px solid var(--accent);
+            background: #2a2a20;
+        }
+
+        .car-card.selected::after {
+            content: "✓";
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--accent);
+            color: black;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .car-header {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .car-year { font-weight: bold; color: var(--accent); }
+        .car-title { font-weight: 700; font-size: 1.1rem; line-height: 1.2; }
+        
+        .car-stats {
+            display: flex;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            flex-wrap: wrap;
+        }
+
+        .stat-tag {
+            background: #111;
+            padding: 3px 6px;
+            border-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        .pi-badge {
+            font-weight: bold;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: #333;
+        }
+        
+        /* PI Class Colors */
+        .pi-E { border-left: 3px solid #666; }
+        .pi-D { border-left: 3px solid #64b5f6; }
+        .pi-C { border-left: 3px solid #ffd54f; }
+        .pi-B { border-left: 3px solid #ff8a65; }
+        .pi-A { border-left: 3px solid #e53935; }
+        .pi-S { border-left: 3px solid #ba68c8; }
+        .pi-R { border-left: 3px solid #90caf9; } /* R is usually blueish/silver in FM */
+        .pi-P { border-left: 3px solid #81c784; }
+        .pi-X { border-left: 3px solid #4db6ac; }
+
+        .division {
+            font-size: 0.8rem;
+            color: #888;
+            font-style: italic;
+            margin-top: auto;
+        }
+
+        /* --- Floating Action Bar --- */
+        .fab-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 600px;
+            background: var(--bg-floating);
+            backdrop-filter: blur(15px);
+            border: 1px solid #444;
+            border-radius: 50px;
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 500;
+            transition: bottom 0.3s;
+        }
+
+        .fab-bar.hidden { bottom: -100px; }
+
+        .fab-count { font-weight: bold; color: white; }
+        .fab-btn {
+            background: var(--accent);
+            color: black;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 25px;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        /* --- Modal --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .modal-overlay.open { display: flex; opacity: 1; }
+
+        .modal {
+            background: #1a1a1a;
+            width: 100%;
+            max-width: 500px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        .modal-header {
+            background: #252525;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .modal-title { font-size: 1.1rem; font-weight: bold; color: white; text-transform: uppercase; letter-spacing: 1px; }
+        .modal-close { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
+
+        .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+
+        .modal-tabs {
+            display: flex;
+            gap: 10px;
+            background: #1f1f1f;
+            border: 1px solid #333;
+            padding: 6px;
+            border-radius: 999px;
+        }
+
+        .modal-tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-sub);
+            font-weight: 700;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .modal-tab-btn.active {
+            background: var(--accent);
+            color: black;
+        }
+
+        .modal-view { display: none; flex-direction: column; gap: 12px; }
+        .modal-view.active { display: flex; }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #333;
+            padding-bottom: 10px;
+        }
+        .result-row:last-child { border-bottom: none; }
+
+        .result-label { color: #888; font-size: 0.9rem; }
+        .result-value { color: var(--accent); font-weight: bold; font-family: monospace; font-size: 1.1rem; text-align: right;}
+        .result-value.warning { color: #ff5555; font-size: 0.9rem; }
+        .result-value .mini-tag { margin-left: 6px; vertical-align: middle; }
+        
+        .tag-list { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+        .mini-tag { background: #333; font-size: 0.8rem; padding: 2px 6px; border-radius: 3px; color: white; }
+        .mini-tag.unknown { background: #2a2a2a; border: 1px solid #555; color: #ddd; }
+
+        .matches-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .matches-summary strong { color: var(--accent); }
+
+        .matches-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .matches-filter-group {
+            display: flex;
+            background: #1f1f1f;
+            border: 1px solid #333;
+            border-radius: 999px;
+            padding: 4px;
+            gap: 4px;
+        }
+
+        .matches-filter-btn {
+            border: none;
+            background: transparent;
+            color: var(--text-sub);
+            font-size: 0.8rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 999px;
+            cursor: pointer;
+        }
+
+        .matches-filter-btn.active {
+            background: var(--accent);
+            color: black;
+        }
+
+        .matches-search {
+            flex: 1;
+            min-width: 180px;
+        }
+
+        .matches-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 320px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .match-card {
+            cursor: default;
+        }
+
+        .match-card:hover {
+            transform: none;
+            border-color: var(--border);
+        }
+
+        .match-card.extra {
+            border-color: #ff5555;
+        }
+
+        .match-badge {
+            margin-left: auto;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 999px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .match-badge.selected {
+            background: var(--accent);
+            color: black;
+        }
+
+        .match-badge.extra {
+            background: rgba(255, 85, 85, 0.2);
+            color: #ff8d8d;
+            border: 1px solid #ff5555;
+        }
+
+        .no-cars-msg { text-align: center; color: #666; margin-top: 50px; font-style: italic; }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Forza <span>Builder</span></h1>
+    <div class="unit-toggle" id="unitToggle" onclick="toggleUnits()">Metric / <b>Imperial</b></div>
+</header>
+
+<div class="controls">
+    <select id="datasetSelect" class="dataset-select" onchange="handleDatasetChange(this.value)">
+        <option value="fm2023">FM-2023</option>
+        <option value="fm7">FM7</option>
+    </select>
+    <input type="text" id="searchInput" placeholder="Search Make, Model, Div..." onkeyup="filterCars()">
+    <button class="btn-icon" id="favBtn" onclick="toggleFavFilter()" title="Favorites Only">★</button>
+    <button class="btn-icon" onclick="resetGrid()" title="Clear Selection">↺</button>
+</div>
+
+<div class="car-grid" id="carContainer">
+    <!-- Cars injected here -->
+</div>
+
+<!-- Floating Bar -->
+<div class="fab-bar hidden" id="fabBar">
+    <div class="fab-count"><span id="countValue">0</span> Cars</div>
+    <button class="fab-btn" onclick="analyzeGrid()">Event Setup</button>
+</div>
+
+<!-- Results Modal -->
+<div class="modal-overlay" id="resultModal" onclick="closeModal(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Event Restrictions</div>
+            <button class="modal-close" onclick="toggleModal(false)">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-tabs">
+                <button class="modal-tab-btn active" id="modalTabRestrictions" onclick="setModalTab('restrictions')">Restrictions</button>
+                <button class="modal-tab-btn" id="modalTabMatches" onclick="setModalTab('matches')">Matches</button>
+            </div>
+            <div class="modal-view active" id="modalViewRestrictions">
+                <!-- Restrictions Content -->
+            </div>
+            <div class="modal-view" id="modalViewMatches">
+                <!-- Matches Content -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- DATA START ---
+    const DATASETS = [
+        (() => {
+            // =========================
+            // DATASET: FM-2023 (DEFAULT)
+            // =========================
+            // DATOS HARD-CODED GENERADOS POR POWERSHELL
+    const columns = ["Is Favorite","Year Makes: 92 Models: 618","Nickname","Ordinal","Year","Makes: 92","Models: 618","Access Type","DLC Pack","Special Reward/Gift","Direct Access","Rarity","FE Boost","Featured Sale Deadline","Car Value","Car Division","Spec","PI","Class","S","B","H","A","L","O","HP","T","Wt","Wt / HP","%","Displ cc","Aspiration","Engine","Cylinders","Eng","Drive","F Tire/RRim","R Tire/RRim","Track Width","Aero or kit Options","Engine Conversions (hp)","Aspiration Options","Naturally Aspirated","Region","Country","Model Family","Open Top","Doors","Steering","Wheels","No lights","Car Themes","0-60 Sec","0-100 Sec","1/4 Mile","Top Speed","60-0 Feet","100-0 Ft","60 mph g\u0027s","100mph g\u0027s","60-100 sec","MM VIN","FM Debut","FH5 Debut","Forza Debut","Latest game","New to Forza","FM","FH5","FH4","FM7","FH3","FM6","FH2","FM5","FH1","FM4","FM3","FM2","FM1","# Titles","Xbox gen"];
+    const carData = [["yes","2017 Abarth 124 Spider","Abarth 124 \u002717",2740,2017,"Abarth","124 Spider","Buy Cars Base","FM Update 4","","","Common","","24-Jan-2024",43000,"Modern Sport Compact","Factory",360,"D",2.1,2.3,2.4,2.2,2.6,5.1,186,184,2477,13.32,54,1368,"T","Inline",4,"F","RWD","205/R17","205/R17","Both","Forza","194, 212, 232, 250, 276, 350, 415, 630, 690","none","eng","Europe","Italy","","Yes",2,"L",4,"","SS",6.5,17.6,14.917,144.4,111.2,284.3,1.1,1.07,11.1,12843,"25-Jan-24","07-Sep-23","07-Nov-17","FM","FM7","S","cu","FH4","DLC","","","","","","","","","",4,"XBO"],["yes","2020 Acura #6 ARX-05 DPi","Acura #6 ARX-05",3420,2020,"Acura","#6 ARX-05 DPi","Reward","FM Update 1","BC Track Tour. gift Feb2024","","","","",358000,"Forza Proto-H","Race",943,"P",6,9.5,9.6,7.7,"","",600,500,2174,3.62,45,3500,"TT","V",6,"M","RWD","310/R18","310/R18","","Adjustable","none","none","","N. America","U.S.","Acura ARX","",2,"L",4,"","",2.47,4.663,10.067,201,76.9,186.8,1.61,2.21,2.193,13429,"25-Oct-23","","25-Oct-23","FM","FM","R","","","","","","","","","","","","",1,"XBO"],["","2017 Acura NSX","Acura NSX \u002717",2352,2017,"Acura","NSX","Buy Cars Base","","","","Rare","","",243000,"Modern Sport GT","Factory",731,"S",5.2,3.8,3.3,6.1,"","",573,623,3803,6.64,42,3493,"TT","V",6,"M","AWD","245/R19","305/R20","Both","WB, Forza","375, 562, 603, 630, 788","none","no","N. America","U.S.","Acura NSX","",2,"L",4,"","",2.7,6.4,10.55,190.7,101.1,252,1.17,1.2,3.7,12631,"05-Oct-23","05-Nov-21","01-Nov-16","FM","FH3","FM","FH5","FH4","FM7","DLC","","","","","","","","",5,"XBO"],["","2018 Acura #36 NSX GT3","Acura #36 NSX",3240,2018,"Acura","#36 NSX GT3","Buy Cars DLC","202310 Race Day Car Pack","Gift w/DLC","","","","",307000,"Forza GT","Race",819,"R",4.7,6.7,6.9,6.3,"","",522,405,2910,5.57,45,3500,"TT","V",6,"M","RWD","300/R18","325/R18","","Adjustable","none","none","","N. America","U.S.","Acura NSX","",2,"L",4,"","",3.3,6.783,11,181.8,82.5,206.6,1.47,1.7,3.483,13393,"05-Oct-23","","05-Oct-23","FM","FM","DLC","","","","","","","","","","","","",1,"XBO"],["","2001 Acura Integra Type R","Acura ITR \u002701",368,2001,"Acura","Integra Type R","Buy Cars Base","","","","Common","","",53000,"Early Sport Compact","Factory",338,"D",3.3,1.5,1.9,2,"","",195,130,2639,13.53,62,1797,"NA","Inline",4,"F","FWD","195/R15","195/R15","Both","Forza","212, 350, 375, 394I, 475, 630","T, PDS, CS","stock","N. America","U.S.","Acura Integra","",2,"L",4,"","RPC, DD",6.6,17.9,15.2,160.3,113,299.1,1.05,1,11.3,11003,"05-Oct-23","05-Nov-21","03-May-05","FM","FM1","FM","FH5","FH4","FM7","FH3","FM6","DLC","FM5","","FM4","FM3","FM2","FM1",12,"XBO"],["","2017 Alfa Romeo Giulia Quadrifoglio","Alfa Giulia \u002717",2542,2017,"Alfa Romeo","Giulia Quadrifoglio","Buy Cars Base","FM Update 4","","","Rare","","24-Jan-2024",120000,"Modern Sport Touring","Factory",632,"A",5.8,3.5,3.1,4.5,4.9,5,506,442,3822,7.55,50,2891,"TT","V",6,"F","RWD","245/R19","285/R19","Both","Forza","375, 394I, 562, 603, 630, 788","none","eng","Europe","Italy","Alfa Romeo Giulia","",4,"L",4,"","",3.6,8.1,11.883,197.5,105.5,261.2,1.15,1.16,4.5,12844,"01-Feb-24","15-Aug-23","07-Nov-17","FM","FM7","S","cu","FH4","DLC","","","","","","","","","",4,"XBO"],["","2014 Alfa Romeo 4C","Alfa Romeo 4C",2038,2014,"Alfa Romeo","4C","Buy Cars Base","FM Update 6","","","Rare","","20-Mar-2024",89000,"Modern Sport Coupe","Factory",522,"B",3.1,2.9,3.1,3.5,7,5,240,238,2077,8.65,41,1742,"T","Inline",4,"M","RWD","205/R18","235/R19","Both","Street, Safety Light","350, 394I, 475, 630, 690","none","eng","Europe","Italy","","",2,"L",4,"","",4.4,11.45,13.1,158.5,108.5,270.1,1.17,1.16,7.05,12186,"13-Mar-24","24-Aug-23","04-Nov-14","FM","FH2","S","cu","FH4","FM7","FH3","FM6","DLC","","","","","","",7,"XBO"]];
+
+            const COL = {
+                IS_FAV: 0,
+                YEAR: 4,
+                MAKE: 5,
+                MODEL: 6,
+                DIVISION: 15,
+                PI: 17,
+                CLASS: 18,
+                HP: 25,
+                WEIGHT: 27,
+                CYLINDERS: 33,
+                ENGINE_LOC: 34,
+                DRIVE: 35
+            };
+
+            const normalizeDrive = (raw) => {
+                if (raw === null || raw === undefined) return "Unknown";
+                const value = String(raw).trim();
+                return value || "Unknown";
+            };
+
+            return {
+                id: "fm2023",
+                name: "FM-2023",
+                columns,
+                carData,
+                COL,
+                normalizeDrive
+            };
+        })(),
+        (() => {
+            // =========================
+            // DATASET: FM7 (PASTE HERE)
+            // =========================
+    const columns = ["Is Favorite","Division","Year","Makes: 99","Models: 837","Random Ring Race","Special In-Game Access","Event Rewards / Gifts","Specialty Dealer Dates","Value","Tier","FE Boost","Class","PI","S","H","A","L","B","HP","T","Wt","Wt / HP","%","Displ","Asp","Config","Cylinders","Eng Place","Drive","Engine Conversions (hp)","PI RWD","PI AWD","Aspiration Options","Aero/kit Options","Rear Tire","NA Asp","Region","Country","Model Family","Open Top","No lights","FH3 Special Themes","0-60 Sec","0-100 Sec","1/4 mile Sec","Top Speed","60-0 Feet","100-0 Feet","60mph g\u0027s","100mph g\u0027s","60-100 sec","Most recent game","DLC Pack (most recent game)","FH4","FM7","FH3","FM6","Apex","FH2","FM5","FH1","FM4","FM3","FM2","FM1","#","Announced ","filter","X gen"];
+    const carData = [["yes","Modern Hot Hatch",2016,"Abarth","695 Biposto","","","","",48000,"Common","","D",373,5.3,4.7,6.4,"",4.5,186,183,2198,11.82,64,1368,"T","Inline",4,"F","F","212, 332, 375","","","none","Forza","","no","Europe","Italy","","","","",5.8,16.9,"",142.7,144.7,320.1,1.11,1.06,11.1,"FM7","","FH4","FM7","FH3","DLC","","","","","","","","",3,"8/15/2017","","XBO"],["yes","Modern Hot Hatch",2013,"Abarth","Punto Supersport","","","201807 Forzathon","",42500,"Common","","D",363,5,4.6,6.5,"",4.5,177,199,2612,14.76,60,"","T","Inline",4,"F","F","212, 332, 375",350,370,"none","Forza","","eng","Europe","Italy","","","","",7.519,18.637,"",135.8,146.2,327.4,1.09,1.05,11.118,"FM7","","","FM7","","FM6","Apex","FH2","DLC","","","","","",5,"8/15/2017","","XBO"],["yes","Showroom Rally",1980,"Abarth","Fiat 131","3/24/17","","",20190122,34000,"Common","","E",284,4.8,4.2,6,"",3.9,140,130,2161,15.44,54,1995,"NA","Inline",4,"F","R","276, 375",284,293,"T, CS","Rally","","stock","Europe","Italy","","","","",8.2,24,"",130,144.5,358.6,1.03,0.96,15.8,"FM7","","FH4","FM7","FH3","FM6","","FH2","DLC","","FM4","DLC","","",7,"8/15/2017","","XBO"],["yes","Major Micros",1968,"Abarth","595 esseesse","","","","",28000,"Common","","E",109,3,3.7,3,"",3.7,28,34,1257,44.89,42,594,"NA","Inline",2,"R","R","232, 305, 375",109,110,"CS","Forza","","stock","Europe","Italy","","","","",28.32,999.999,"",74.3,132.6,"na",0.96,0.9,971.679,"FM7","","FH4","FM7","FH3","FM6","","DLC","","FH1","","","","",5,"7/25/2017","","XBO"],["","Sport GT",2017,"Acura","NSX","","","201901 Forzathon","",225000,"Rare","","S",736,7,5.2,8.8,"",5.3,573,623,3803,6.64,42,3493,"TT","V",6,"M","A",650,"",736,"none","Forza","","eng","N. America","U.S.","NSX","","","",2.7,6.4,"",190.8,131.9,309.6,1.16,1.19,3.7,"FM7","","FH4","FM7","DLC","","","","","","","","","",2,"8/1/2017","","XBO"],["","Sport GT",2017,"Acura","NSX Forza Edition","","Championship","FDC E, 201710 VIP","",100,"Legendary","40%CR + 40%CR at Dubai","S",773,6.8,5.9,8.8,"",6,577,623,3801,6.59,42,"","TT","V",6,"M","A",650,765,773,"none","FE Bodykit, tire lettering","","eng","N. America","U.S.","NSX","","","",2.7,6.4,"",184.1,128.4,298.6,1.27,1.32,3.7,"FM7","","","FE","","","","","","","","","","",1,"10/3/2017","tuned","XBO"],["","Sport Compact Icons",2002,"Acura","RSX Type-S","","","",20190115,27000,"Common","","D",339,5.8,4.2,6.5,"",3.9,200,142,2820,14.1,61,1998,"NA","Inline",4,"F","F","332, 375",330,350,"T, CS","Aftermarket","","stock","N. America","U.S.","Integra","","","RPC",6.7,18,"",148.4,125.9,330,1.03,0.98,11.3,"FM7","","FH4","FM7","FH3","FM6","","FH2","DLC","","FM4","FM3","FM2","FM1",9,"8/1/2017","","XBO"],["","Sport Compact Icons",2001,"Acura","Integra Type-R","","","","",38500,"Common","","D",357,5.7,4.3,6.6,"",4,195,130,2639,13.53,62,1797,"NA","Inline",4,"F","F","212, 332",348,369,"T, PDS, CS","Forza","","stock","N. America","U.S.","Integra","","","RPC",6.165,14.684,"",154.1,123.6,316.6,1.04,1,8.519,"FM7","","FH4","FM7","FH3","FM6","","DLC","FM5","","FM4","FM3","FM2","FM1",9,"8/1/2017","","XBO"],["","Sport Touring",2017,"Alfa Romeo","Giulia Quadrifoglio","DLC","Paid DLC","Free w/DLC","",120000,"Rare","","A",605,7.4,5.1,7.9,"",5.2,506,442,3822,7.55,50,"","TT","V",6,"F","R","562v10, 562v8, 650",605,657,"none","Forza","","eng","Europe","Italy","","","","",3.816,8.717,"",197.4,142.8,347.6,1.14,1.16,4.901,"FM7","201711 Samsung","FH4","DLC","","","","","","","","","","",1,"11/3/2017","","XBO"],["yes","Sport Coupe",2014,"Alfa Romeo","4C","","","",20190423,135000,"Rare","","B",532,5.9,5.2,7.3,"",4.9,240,258,2500,10.42,43,1742,"T","Inline",4,"M","R","332, 475, 690",532,553,"none","Safety lights",235,"eng","Europe","Italy","","","","",4.4,11.45,"",158.8,126.7,315,1.17,1.16,7.05,"FM7","","FH4","FM7","FH3","FM6","","DLC","","","","","","",4,"8/15/2017","","XBO"],["","Modern Hot Hatch",2011,"Alfa Romeo","Giulietta Quadrifoglio Verde","","","","",45000,"Common","","D",391,5.7,4.5,6.7,"",4.2,231,251,2910,12.6,63,1742,"T","Inline",4,"F","F","332, 375",382,404,"none","Forza",225,"eng","Europe","Italy","","","","",6.6,17.5,"",154.5,140.9,336.2,1.07,1.02,10.9,"FM7","","","FM7","","FM6","","FH2","DLC","","DLC","","","",5,"8/15/2017","","XBO"],["","Supercar Renaissance",2007,"Alfa Romeo","8C Competizione","","","201811 Bounty","",650000,"Legendary","","B",596,7.2,4.9,8,8.1,4.7,450,354,3495,7.77,49,4691,"NA","V",8,"F","R",650,596,628,"CS","Forza","","stock","Europe","Italy","","","","",4.2,9.3,"",193.6,123.8,319.1,1.11,1.11,5.1,"FM7","","FH4","FM7","FH3","FM6","","FH2","FM5","FH1","FM4","FM3","","",8,"8/15/2017","","XBO"],["","Early Sport Touring",1992,"Alfa Romeo","155 Q4 ","","","","",36500,"Common","","D",355,5.6,4.3,6.4,"",4,187,219,3064,16.39,61,1995,"T","Inline",4,"F","A","332, 415, 475",363,355,"none","Preset","","no","Europe","Italy","","","","RPC",6.72,18.619,"",147.9,142.8,344.9,1.04,1.01,11.899,"FM7","","","FM7","FH3","FM6","","","","","DLC","","","",4,"8/15/2017","","XBO"],["","Early Sport Touring",1992,"Alfa Romeo","Milano Quadrifoglio Verde","","","","",37500,"Common","","E",291,5.1,4,6,"",3.9,185,181,2866,15.49,51,2959,"NA","V",6,"F","R","332, 415, 562v8",291,302,"TT, PDS","Forza","","stock","Europe","Italy","","","","RPC",8.122,21.596,"",134.3,148,367.1,1,0.95,13.474,"FM7","","","FM7","FH3","DLC","","","","","","","","",3,"8/15/2017","","XBO"],["","Early Sport Touring",1990,"Alfa Romeo","SZ Sprint Zagato","","","201804 Leagues, 201805 Rivals","",79000,"Uncommon","","D",369,5.7,4.7,6.4,"",4.4,207,181,2778,13.42,56,"","NA","V",6,"F","R","276, 415, 562v8",369,392,"TT, CS","Forza","","stock","Europe","Italy","","","","",7,18.7,"",152.6,138.6,344.1,1.09,1.07,11.7,"FM7","","","FM7","","FM6","","","DLC","","","","","",3,"8/15/2017","","XBO"],["","Early Sport Touring",1986,"Alfa Romeo","GTV-6","","","",20190319,37500,"Common","","E",276,4.9,4,5.7,"",3.9,155,157,2840,18.32,51,2500,"NA","V",6,"F","R","276, 415, 562v8",276,283,"TT, PDS","Street","","stock","Europe","Italy","","","","",9.1,25.2,"",131.4,143.5,364.7,1,0.96,16.1,"FM7","","","FM7","","FM6","","","DLC","","FM4","","","",4,"8/15/2017","","XBO"],["","Sport Compact Icons",1986,"Alfa Romeo","Spider Quadrifoglio Verde","7/27/18","","","",37000,"Common","","E",259,4.6,4.2,5.3,"",3.9,115,119,2549,22.17,56,1962,"NA","Inline",4,"F","R","212, 332, 415, 562v8",259,264,"T, CS","Forza","","stock","Europe","Italy","","Yes","","",9.8,36.7,"",121.6,143,357.8,1.02,0.97,26.9,"FM7","","","FM7","","FM6","","FH2","DLC","","FM4","","","",5,"8/15/2017","","XBO"],["","Vintage Sport GT",1970,"Alfa Romeo","Montreal","","","","20181120, 20190528, W8",115000,"Rare","","E",288,5.5,4,5.9,"",3.7,200,174,2810,14.05,55,2600,"NA","V",8,"F","R","333, 415, 562v8",288,297,"TT","Forza","","stock","Europe","Italy","","","","",8,21.2,"",146.8,135.5,347.8,0.99,0.96,13.2,"FM7","","","FM7","","","","","","","FM4","","","",2,"8/15/2017","","XBO"],["","Vintage GT Racing",1968,"Alfa Romeo","33 Stradale","","","","20181009, 20190625, W12",900000,"Legendary","","B",600,6.5,5.3,8.3,8,4.9,245,148,1543,6.3,40,1995,"NA","V",8,"M","R","375, 562v8",600,"","TT","Forza","","stock","Europe","Italy","","","","CC, HR",5.5,11.39,"",174.5,106,267.7,1.21,1.13,5.89,"FM7","","FH4","FM7","FH3","FM6","","FH2","DLC","","DLC","","","",6,"7/25/2017","","XBO"],["","Vintage Sport Compact",1965,"Alfa Romeo","Giulia Sprint GTA Stradale","","","","20180925, W3",73000,"Uncommon","","E",272,4.2,3.7,6.3,"",3.5,115,105,1676,14.57,54,1570,"NA","Inline",4,"F","R","212, 332, 562v8",272,285,"T, CS","Forza","","stock","Europe","Italy","","","","",7.9,24,"",116.2,128.3,332.4,0.98,0.88,16.1,"FM7","","FH4","FM7","FH3","FM6","","","FM5","","FM4","DLC","","",6,"7/25/2017","","XBO"],["","Vintage GT Racing",1965,"Alfa Romeo","Giulia TZ2","","","",20181009,800000,"Legendary","","C",488,5.7,4.9,7.7,"",4.5,170,130,1367,8.04,54,1570,"NA","Inline",4,"F","R","562v8, 650",488,518,"T","Forza","","stock","Europe","Italy","","","","CC",5.82,13.33,"",153.8,121.7,300.8,1.16,1.03,7.51,"FM7","","FH4","FM7","FH3","FM6","","FH2","","","","","","",4,"7/25/2017","race","XBO"],["","Vintage Sport Compact",1958,"Alfa Romeo","Giulietta Sprint Veloce","DLC","Paid DLC","Free w/DLC","",35000,"Uncommon","","E",228,4.1,3.6,5.2,"",3.3,90,97,1874,20.82,54,"","NA","Inline",4,"F","R","212, 332, 562v8",228,235,"T, PDS","Lights",155,"stock","Europe","Italy","","","","",10.518,36.5,"",110.7,137.8,349.2,0.95,0.87,25.982,"FM7","201807 Top Gear","","DLC","","","","","","","","","","",1,"7/2/2018","","XBO"],["","The Birth of Grand Prix",1950,"Alfa Romeo",158,"","","201905 Bounty","",500000,"Super Rare","","B",574,6.1,4.9,8.2,"",4.5,384,286,1568,4.08,52,"","PDS","Inline",8,"F","R","none",574,"na","none","none","","no","Europe","Italy","","","","",4.117,8.9,"",165.4,106.5,277.8,1.13,1.12,4.783,"FM7","","","FM7","","","","","","","","","","",1,"7/25/2017","race","XBO"],["","The Birth of Grand Prix",1934,"Alfa Romeo","P3","","Showcase","Domination","",100,"Super Rare","","B",540,6.1,4.5,8.2,"",4.3,285,300,1653,5.8,50,"","PDS","Inline",8,"F","R","none",540,"na","none","none","","no","Europe","Italy","","","","",4.482,9.2,"",161.9,108.4,283.6,1.07,1.02,4.718,"FM7","","FH4","FM7","","DLC","","","","","","","","",2,"7/25/2017","race","XBO"],["","The Birth of Grand Prix",1932,"Alfa Romeo","8C 2300 Spider","DLC","Paid DLC","Free w/DLC","",500000,"Rare","","E",290,4.4,4.2,6.5,"",4.2,155,173,2185,14.1,52,"","PDS","Inline",8,"F","R","none",290,"na","none","none","","no","Europe","Italy","","","","",9,23,"",120.5,116.5,295.6,1.02,0.98,14,"FM7","201803 March","","DLC","","","","","","","","","","",1,"3/5/2018","race","XBO"],["","Off-road Buggies",2015,"Alumi Craft","Class 10 Race Car","","","","",85000,"Uncommon","","D",332,4.2,4.5,6.8,"",4.6,196,190,2200,11.22,45,2384,"NA","Inline",4,"R","R","none",322,"na","none","none","","stock","N. America","U.S.","","","","",5.617,17.117,"",116,112.5,286.2,1.07,1.01,11.5,"FM7","","FH4","FM7","FH3","","","","","","","","","",2,"8/29/2017","race","XBO"],["","Hot Hatch Genesis",1977,"AMC","Pacer X","8/16/19","","","20190101, W5",20000,"Common","","E",209,4.3,3.5,4.5,5.1,3.3,120,212,3425,28.54,55,4229,"NA","Inline",6,"F","R","232, 276, 415, 425",209,213,"T, CS","Hood","","stock","N. America","U.S.","","","","IMC?",13.381,43.88,"",113.6,150.6,381.5,0.93,0.88,30.499,"FM7","","","FM7","cu","","","","","","DLC","","","",3,"8/8/2017","","XBO"],["","Historic Road Racing",1971,"AMC","Javelin-AMX","","","201808 Leagues","",53000,"Uncommon","","D",356,4.7,3.9,7.2,"",3.7,330,430,3445,10.44,53,3445,"NA","V",8,"F","R","415, 425, 825",356,409,"T, PDS","Hood","","stock","N. America","U.S.","","","","",6.5,14.5,"",128.3,143.4,351.1,0.99,0.93,8,"FM7","","FH4","FM7","FH3","FM6","","FH2","FM5","DLC","FM4","DLC","","",8,"8/8/2017","","XBO"]];
+
+
+            const COL = {
+                IS_FAV: 0,
+                DIVISION: 1,
+                YEAR: 2,
+                MAKE: 3,
+                MODEL: 4,
+                CLASS: 12,
+                PI: 13,
+                HP: 19,
+                WEIGHT: 21,
+                CYLINDERS: 27,
+                ENGINE_LOC: 28,
+                DRIVE: 29
+            };
+
+            const normalizeDrive = (raw) => {
+                if (raw === null || raw === undefined) return "Unknown";
+                const value = String(raw).trim();
+                if (value === "F") return "FWD";
+                if (value === "R") return "RWD";
+                if (value === "A") return "AWD";
+                return value || "Unknown";
+            };
+
+            return {
+                id: "fm7",
+                name: "FM7",
+                columns,
+                carData,
+                COL,
+                normalizeDrive
+            };
+        })()
+    ];
+    const DATASET_BY_ID = Object.fromEntries(DATASETS.map(dataset => [dataset.id, dataset]));
+
+    // --- DATA END ---
+
+    const DATASET_STORAGE_KEY = "fgb.datasetId";
+    let currentDatasetId = localStorage.getItem(DATASET_STORAGE_KEY) || DATASETS[0].id;
+    if (!DATASET_BY_ID[currentDatasetId]) {
+        currentDatasetId = DATASETS[0].id;
+    }
+    let activeDataset = DATASET_BY_ID[currentDatasetId];
+    let currentCarData = activeDataset.carData;
+    let COL = activeDataset.COL;
+
+    // State
+    let selectedIndices = new Set();
+    let isImperial = true; // true = lbs/hp, false = kg/kw
+    let showFavOnly = false;
+    let searchQuery = "";
+    let currentRestrictions = null;
+    let currentMatches = [];
+    let activeModalTab = "restrictions";
+    let matchesFilter = "all";
+    let matchesSearchQuery = "";
+
+    // DOM Elements
+    const carContainer = document.getElementById('carContainer');
+    const fabBar = document.getElementById('fabBar');
+    const countValue = document.getElementById('countValue');
+    const searchInput = document.getElementById('searchInput');
+    const favBtn = document.getElementById('favBtn');
+    const unitToggle = document.getElementById('unitToggle');
+    const datasetSelect = document.getElementById('datasetSelect');
+    const resultModal = document.getElementById('resultModal');
+    const modalViewRestrictions = document.getElementById('modalViewRestrictions');
+    const modalViewMatches = document.getElementById('modalViewMatches');
+    const modalTabRestrictions = document.getElementById('modalTabRestrictions');
+    const modalTabMatches = document.getElementById('modalTabMatches');
+
+    // --- INITIALIZATION ---
+    function init() {
+        datasetSelect.value = currentDatasetId;
+        renderGrid();
+    }
+
+    function toNumber(value) {
+        if (value === null || value === undefined) return null;
+        const text = String(value).trim();
+        if (!text) return null;
+        const num = Number(text);
+        return Number.isFinite(num) ? num : null;
+    }
+
+    function formatWeight(value) {
+        return isImperial ? `${value} lbs` : `${Math.round(value * 0.453592)} kg`;
+    }
+
+    function formatPower(value) {
+        return isImperial ? `${value} hp` : `${Math.round(value * 0.7457)} kw`;
+    }
+
+    function formatPiBadge(piValue, piClass) {
+        const classLabel = piClass && String(piClass).trim() ? String(piClass).trim() : null;
+        if (classLabel) {
+            return `${classLabel} ${piValue ?? "Unknown"}`;
+        }
+        return piValue ?? "Unknown";
+    }
+
+    function getDriveLabel(raw) {
+        return activeDataset.normalizeDrive(raw);
+    }
+
+    function setActiveDataset(datasetId) {
+        const nextDataset = DATASET_BY_ID[datasetId] || DATASETS[0];
+        currentDatasetId = nextDataset.id;
+        activeDataset = nextDataset;
+        currentCarData = activeDataset.carData;
+        COL = activeDataset.COL;
+        localStorage.setItem(DATASET_STORAGE_KEY, currentDatasetId);
+    }
+
+    // --- RENDER LOGIC ---
+    function renderGrid() {
+        carContainer.innerHTML = "";
+        
+        currentCarData.forEach((car, index) => {
+            // Filter: Search
+            const searchStr = (car[COL.MAKE] + " " + car[COL.MODEL] + " " + car[COL.DIVISION]).toLowerCase();
+            if (searchQuery && !searchStr.includes(searchQuery)) return;
+
+            // Filter: Favorites
+            if (showFavOnly && car[COL.IS_FAV] !== "yes") return;
+
+            // Values
+            const wtValue = toNumber(car[COL.WEIGHT]);
+            const hpValue = toNumber(car[COL.HP]);
+            const piValue = toNumber(car[COL.PI]);
+            const piClass = car[COL.CLASS];
+            
+            // Format Display Values based on unit preference
+            const wtDisplay = wtValue === null ? "Unknown" : formatWeight(wtValue);
+            const hpDisplay = hpValue === null ? "Unknown" : formatPower(hpValue);
+            const piDisplay = formatPiBadge(piValue, piClass);
+            const driveLabel = getDriveLabel(car[COL.DRIVE]);
+
+            // Build Card
+            const isSelected = selectedIndices.has(index);
+            const card = document.createElement('div');
+            const piClassName = piClass && String(piClass).trim() ? `pi-${String(piClass).trim()}` : '';
+            card.className = `car-card ${isSelected ? 'selected' : ''} ${piClassName}`;
+            card.onclick = () => toggleSelection(index);
+
+            card.innerHTML = `
+                <div class="car-header">
+                    <span class="car-year">${car[COL.YEAR]}</span>
+                    <span class="car-title">${car[COL.MAKE]} ${car[COL.MODEL]}</span>
+                </div>
+                <div class="car-stats">
+                    <span class="pi-badge">${piDisplay}</span>
+                    <span class="stat-tag">${hpDisplay}</span>
+                    <span class="stat-tag">${wtDisplay}</span>
+                    <span class="stat-tag">${driveLabel}</span>
+                </div>
+                <div class="division">${car[COL.DIVISION]}</div>
+            `;
+            
+            carContainer.appendChild(card);
+        });
+
+        // Update empty state if needed
+        if (carContainer.innerHTML === "") {
+            carContainer.innerHTML = `<div class="no-cars-msg">No cars found matching filters.</div>`;
+        }
+    }
+
+    // --- INTERACTIONS ---
+    function filterCars() {
+        searchQuery = searchInput.value.toLowerCase();
+        renderGrid();
+    }
+
+    function toggleFavFilter() {
+        showFavOnly = !showFavOnly;
+        favBtn.classList.toggle('active', showFavOnly);
+        renderGrid();
+    }
+
+    function toggleUnits() {
+        isImperial = !isImperial;
+        unitToggle.innerHTML = isImperial ? 'Metric / <b>Imperial</b>' : '<b>Metric</b> / Imperial';
+        unitToggle.classList.toggle('active', !isImperial); // visual cue
+        renderGrid();
+        if (resultModal.classList.contains('open')) analyzeGrid(true); // Refresh modal if open
+    }
+
+    function toggleSelection(index) {
+        if (selectedIndices.has(index)) {
+            selectedIndices.delete(index);
+        } else {
+            selectedIndices.add(index);
+        }
+        updateFab();
+        renderGrid(); // Re-render to show selection state
+    }
+
+    function resetGrid() {
+        selectedIndices.clear();
+        updateFab();
+        renderGrid();
+    }
+
+    function handleDatasetChange(datasetId) {
+        setActiveDataset(datasetId);
+        selectedIndices.clear();
+        updateFab();
+        renderGrid();
+        if (resultModal.classList.contains('open')) {
+            currentRestrictions = null;
+            currentMatches = [];
+            modalViewRestrictions.innerHTML = `<div class="no-cars-msg">Select cars and run Event Setup to see restrictions.</div>`;
+            renderMatchesView(null);
+        }
+    }
+
+    function updateFab() {
+        countValue.innerText = selectedIndices.size;
+        if (selectedIndices.size > 0) {
+            fabBar.classList.remove('hidden');
+        } else {
+            fabBar.classList.add('hidden');
+        }
+    }
+
+    // --- MODAL & CALCULATIONS ---
+    function toggleModal(show) {
+        if(show) {
+            resultModal.classList.add('open');
+        } else {
+            resultModal.classList.remove('open');
+        }
+    }
+
+    function closeModal(e) {
+        if (e.target === resultModal) toggleModal(false);
+    }
+
+    function mapEngineLoc(code) {
+        if (code === 'F') return 'Front';
+        if (code === 'M') return 'Mid';
+        if (code === 'R') return 'Rear';
+        return code;
+    }
+
+    function initStatTracker() {
+        return { min: Infinity, max: -Infinity, unknown: 0 };
+    }
+
+    function updateStatTracker(tracker, value) {
+        if (value === null) {
+            tracker.unknown += 1;
+            return;
+        }
+        if (value < tracker.min) tracker.min = value;
+        if (value > tracker.max) tracker.max = value;
+    }
+
+    function formatRange(tracker, formatter) {
+        if (!Number.isFinite(tracker.min) || !Number.isFinite(tracker.max)) {
+            return "Unknown";
+        }
+        const formatted = tracker.min === tracker.max
+            ? formatter(tracker.max)
+            : `${formatter(tracker.min)} - ${formatter(tracker.max)}`;
+        if (tracker.unknown > 0) {
+            return `${formatted} <span class="mini-tag unknown">Unknown: ${tracker.unknown}</span>`;
+        }
+        return formatted;
+    }
+
+    function computeRestrictionsFromSelection() {
+        // Init Stats
+        const yearStats = initStatTracker();
+        const piStats = initStatTracker();
+        const hpStats = initStatTracker();
+        const wtStats = initStatTracker();
+
+        const divisions = new Set();
+        const drives = new Set();
+        const engines = new Set();
+        const cylinders = new Set();
+
+        selectedIndices.forEach(idx => {
+            const car = currentCarData[idx];
+
+            // Numeric Stats
+            const year = toNumber(car[COL.YEAR]);
+            const pi = toNumber(car[COL.PI]);
+            const hp = toNumber(car[COL.HP]);
+            const wt = toNumber(car[COL.WEIGHT]);
+
+            updateStatTracker(yearStats, year);
+            updateStatTracker(piStats, pi);
+            updateStatTracker(hpStats, hp);
+            updateStatTracker(wtStats, wt);
+
+            // Categorical Stats
+            divisions.add(car[COL.DIVISION]);
+            drives.add(getDriveLabel(car[COL.DRIVE]));
+            engines.add(mapEngineLoc(car[COL.ENGINE_LOC]));
+            cylinders.add(car[COL.CYLINDERS]);
+        });
+
+        return {
+            year: yearStats,
+            pi: piStats,
+            hp: hpStats,
+            weight: wtStats,
+            divisions: Array.from(divisions).sort(),
+            drives: Array.from(drives).sort(),
+            engines: Array.from(engines).sort(),
+            cylinders: Array.from(cylinders).sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }))
+        };
+    }
+
+    function renderRestrictionsView(restrictions) {
+        // Generate HTML
+        let html = ``;
+
+        // Year
+        const yearStr = formatRange(restrictions.year, (value) => value);
+        html += createRow("Year Range", yearStr);
+
+        // PI
+        const piStr = formatRange(restrictions.pi, (value) => value);
+        html += createRow("PI Range", piStr);
+
+        // Power
+        const hpStr = formatRange(restrictions.hp, formatPower);
+        html += createRow("Power", hpStr);
+
+        // Weight
+        const wtStr = formatRange(restrictions.weight, formatWeight);
+        html += createRow("Weight", wtStr);
+
+        // Division
+        let divVal = "";
+        if (restrictions.divisions.length === 1) {
+            divVal = restrictions.divisions[0];
+        } else {
+            divVal = `<span class="warning">Mixed (${restrictions.divisions.length})</span>`;
+        }
+        html += createRow("Division", divVal);
+        if (restrictions.divisions.length > 1) html += createTags(restrictions.divisions);
+
+        // Drive
+        html += createRow("Drivetrain", restrictions.drives.join(", "));
+
+        // Engine Config
+        html += createRow("Engine Pos.", restrictions.engines.join(", "));
+
+        // Cylinders
+        html += createRow("Cylinders", restrictions.cylinders.join(", "));
+
+        modalViewRestrictions.innerHTML = html;
+    }
+
+    function isWithinRange(value, range) {
+        if (!Number.isFinite(range.min) || !Number.isFinite(range.max)) {
+            return true;
+        }
+        if (value === null) return false;
+        return value >= range.min && value <= range.max;
+    }
+
+    function getMatchingIndices(restrictions) {
+        const matches = [];
+
+        currentCarData.forEach((car, index) => {
+            const year = toNumber(car[COL.YEAR]);
+            const pi = toNumber(car[COL.PI]);
+            const hp = toNumber(car[COL.HP]);
+            const wt = toNumber(car[COL.WEIGHT]);
+
+            if (!isWithinRange(year, restrictions.year)) return;
+            if (!isWithinRange(pi, restrictions.pi)) return;
+            if (!isWithinRange(hp, restrictions.hp)) return;
+            if (!isWithinRange(wt, restrictions.weight)) return;
+
+            // don't need this in the matching
+            //if (restrictions.divisions.length && !restrictions.divisions.includes(car[COL.DIVISION])) return;
+            //if (restrictions.drives.length && !restrictions.drives.includes(getDriveLabel(car[COL.DRIVE]))) return;
+            //if (restrictions.engines.length && !restrictions.engines.includes(mapEngineLoc(car[COL.ENGINE_LOC]))) return;
+            //if (restrictions.cylinders.length && !restrictions.cylinders.includes(car[COL.CYLINDERS])) return;
+
+            matches.push(index);
+        });
+
+        return matches;
+    }
+
+    function buildMatchCard(index, isSelected) {
+        const car = currentCarData[index];
+        const wtValue = toNumber(car[COL.WEIGHT]);
+        const hpValue = toNumber(car[COL.HP]);
+        const piValue = toNumber(car[COL.PI]);
+        const piClass = car[COL.CLASS];
+        const driveLabel = getDriveLabel(car[COL.DRIVE]);
+
+        const wtDisplay = wtValue === null ? "Unknown" : formatWeight(wtValue);
+        const hpDisplay = hpValue === null ? "Unknown" : formatPower(hpValue);
+        const piDisplay = formatPiBadge(piValue, piClass);
+        const badge = isSelected
+            ? `<span class="match-badge selected">Selected</span>`
+            : `<span class="match-badge extra">Extra</span>`;
+        const extraClass = isSelected ? "selected" : "extra";
+
+        return `
+            <div class="car-card match-card ${extraClass}">
+                <div class="car-header">
+                    <span class="car-year">${car[COL.YEAR]}</span>
+                    <span class="car-title">${car[COL.MAKE]} ${car[COL.MODEL]}</span>
+                    ${badge}
+                </div>
+                <div class="car-stats">
+                    <span class="pi-badge">${piDisplay}</span>
+                    <span class="stat-tag">${hpDisplay}</span>
+                    <span class="stat-tag">${wtDisplay}</span>
+                    <span class="stat-tag">${driveLabel}</span>
+                </div>
+                <div class="division">${car[COL.DIVISION]}</div>
+            </div>
+        `;
+    }
+
+    function renderMatchesView(restrictions) {
+        if (!restrictions) {
+            modalViewMatches.innerHTML = `<div class="no-cars-msg">Select cars and run Event Setup to see matches.</div>`;
+            return;
+        }
+
+        const matches = currentMatches.length ? currentMatches : getMatchingIndices(restrictions);
+        const selectedMatchCount = matches.filter((idx) => selectedIndices.has(idx)).length;
+        const extrasCount = matches.length - selectedMatchCount;
+
+        let filteredMatches = matches;
+        if (matchesFilter === "selected") {
+            filteredMatches = matches.filter((idx) => selectedIndices.has(idx));
+        } else if (matchesFilter === "extras") {
+            filteredMatches = matches.filter((idx) => !selectedIndices.has(idx));
+        }
+
+        if (matchesSearchQuery) {
+            filteredMatches = filteredMatches.filter((idx) => {
+                const car = currentCarData[idx];
+                const searchStr = `${car[COL.MAKE]} ${car[COL.MODEL]} ${car[COL.DIVISION]}`.toLowerCase();
+                return searchStr.includes(matchesSearchQuery);
+            });
+        }
+
+        let listHtml = "";
+        if (filteredMatches.length === 0) {
+            listHtml = `<div class="no-cars-msg">No matching cars for the current filter.</div>`;
+        } else {
+            listHtml = filteredMatches
+                .map((idx) => buildMatchCard(idx, selectedIndices.has(idx)))
+                .join("");
+        }
+
+        modalViewMatches.innerHTML = `
+            <div class="matches-summary">
+                <div>Total matched: <strong>${matches.length}</strong></div>
+                <div>Selected: <strong>${selectedMatchCount}</strong> · Extras: <strong>${extrasCount}</strong></div>
+            </div>
+            <div class="matches-controls">
+                <div class="matches-filter-group">
+                    <button class="matches-filter-btn ${matchesFilter === "all" ? "active" : ""}" onclick="setMatchesFilter('all')">All</button>
+                    <button class="matches-filter-btn ${matchesFilter === "extras" ? "active" : ""}" onclick="setMatchesFilter('extras')">Extras</button>
+                    <button class="matches-filter-btn ${matchesFilter === "selected" ? "active" : ""}" onclick="setMatchesFilter('selected')">Selected</button>
+                </div>
+                <input type="text" class="matches-search" placeholder="Search matches..." value="${matchesSearchQuery}" oninput="setMatchesSearchQuery(this.value)">
+            </div>
+            <div class="matches-list">${listHtml}</div>
+        `;
+    }
+
+    function setModalTab(tabName) {
+        if (tabName !== "restrictions" && tabName !== "matches") return;
+        activeModalTab = tabName;
+        const isRestrictions = tabName === "restrictions";
+        modalTabRestrictions.classList.toggle("active", isRestrictions);
+        modalTabMatches.classList.toggle("active", !isRestrictions);
+        modalViewRestrictions.classList.toggle("active", isRestrictions);
+        modalViewMatches.classList.toggle("active", !isRestrictions);
+
+        if (!isRestrictions) {
+            renderMatchesView(currentRestrictions);
+        }
+    }
+
+    function setMatchesFilter(filter) {
+        matchesFilter = filter;
+        renderMatchesView(currentRestrictions);
+    }
+
+    function setMatchesSearchQuery(value) {
+        matchesSearchQuery = String(value || "").toLowerCase();
+        renderMatchesView(currentRestrictions);
+    }
+
+    function analyzeGrid(preserveTab = false) {
+        if (selectedIndices.size === 0) return;
+
+        currentRestrictions = computeRestrictionsFromSelection();
+        currentMatches = getMatchingIndices(currentRestrictions);
+        renderRestrictionsView(currentRestrictions);
+        toggleModal(true);
+
+        if (preserveTab) {
+            setModalTab(activeModalTab);
+        } else {
+            setModalTab("restrictions");
+        }
+    }
+
+    function createRow(label, value) {
+        return `
+            <div class="result-row">
+                <span class="result-label">${label}</span>
+                <span class="result-value">${value}</span>
+            </div>
+        `;
+    }
+
+    function createTags(items) {
+        let html = `<div class="result-row" style="border:none; padding-top:0;"><div style="flex:1"></div><div class="tag-list">`;
+        items.forEach(i => html += `<span class="mini-tag">${i}</span>`);
+        html += `</div></div>`;
+        return html;
+    }
+
+    // Run
+    init();
+
+</script>
+</body>
+</html>
