@@ -211,6 +211,37 @@
             margin-top: auto;
         }
 
+        .car-footer {
+            margin-top: auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .car-footer .division {
+            margin-top: 0;
+        }
+
+        .details-btn {
+            background: #171717;
+            border: 1px solid #3b3b3b;
+            color: var(--text-main);
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s, background 0.2s;
+        }
+
+        .details-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
         /* --- Floating Action Bar --- */
         .fab-bar {
             position: fixed;
@@ -497,6 +528,50 @@
 
         .no-cars-msg { text-align: center; color: #666; margin-top: 50px; font-style: italic; }
 
+        #detailsModal {
+            z-index: 1200;
+        }
+
+        #detailsModal .modal {
+            max-width: 760px;
+        }
+
+        #detailsModal .modal-body {
+            max-height: 75vh;
+            overflow-y: auto;
+        }
+
+        .details-grid {
+            column-count: 1;
+            column-gap: 18px;
+        }
+
+        @media (min-width: 768px) {
+            .details-grid {
+                column-count: 2;
+            }
+        }
+
+        .detail-item {
+            break-inside: avoid;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            border-bottom: 1px solid #333;
+            padding: 6px 0;
+        }
+
+        .detail-label {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .detail-value {
+            color: #ddd;
+            font-family: monospace;
+            text-align: right;
+        }
+
     </style>
 </head>
 <body>
@@ -603,6 +678,23 @@
             </div>
             <div class="modal-view" id="modalViewMatches">
                 <!-- Matches Content -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Car Details Modal -->
+<div class="modal-overlay" id="detailsModal" onclick="closeDetailsModal(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title" id="detailsTitle">Car Details</div>
+            <button class="modal-close" onclick="toggleDetailsModal(false)">├ù</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-section" id="detailsSummary"></div>
+            <div class="modal-section">
+                <div class="modal-section-title">All Details</div>
+                <div class="details-grid" id="detailsGrid"></div>
             </div>
         </div>
     </div>
@@ -715,6 +807,7 @@
     let activeModalTab = "restrictions";
     let matchesFilter = "all";
     let matchesSearchQuery = "";
+    let currentDetailsIndex = null;
     let sortConfig = {
         primary: { field: null, dir: "desc" },
         secondary: { field: null, dir: "desc" }
@@ -748,6 +841,10 @@
     const modalViewMatches = document.getElementById('modalViewMatches');
     const modalTabRestrictions = document.getElementById('modalTabRestrictions');
     const modalTabMatches = document.getElementById('modalTabMatches');
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsTitle = document.getElementById('detailsTitle');
+    const detailsSummary = document.getElementById('detailsSummary');
+    const detailsGrid = document.getElementById('detailsGrid');
 
     // --- INITIALIZATION ---
     function init() {
@@ -962,7 +1059,10 @@
                     <span class="stat-tag">${wtDisplay}</span>
                     <span class="stat-tag">${driveLabel}</span>
                 </div>
-                <div class="division">${car[COL.DIVISION]}</div>
+                <div class="car-footer">
+                    <div class="division">${car[COL.DIVISION]}</div>
+                    <button class="details-btn" onclick="openCarDetails(event, ${index})">Details</button>
+                </div>
             `;
             
             carContainer.appendChild(card);
@@ -999,6 +1099,9 @@
         updateUnitToggle();
         renderGrid();
         if (resultModal.classList.contains('open')) analyzeGrid(true); // Refresh modal if open
+        if (detailsModal.classList.contains('open') && currentDetailsIndex !== null) {
+            renderCarDetails(currentDetailsIndex);
+        }
     }
 
     function toggleSelection(index) {
@@ -1025,6 +1128,10 @@
         invalidateVisibleCache();
         updateFab();
         renderGrid();
+        currentDetailsIndex = null;
+        if (detailsModal.classList.contains('open')) {
+            toggleDetailsModal(false);
+        }
         if (resultModal.classList.contains('open')) {
             currentRestrictions = null;
             currentMatches = [];
@@ -1077,6 +1184,18 @@
 
     function closeSortModal(e) {
         if (e.target === sortModal) toggleSortModal(false);
+    }
+
+    function toggleDetailsModal(show) {
+        if (show) {
+            detailsModal.classList.add('open');
+        } else {
+            detailsModal.classList.remove('open');
+        }
+    }
+
+    function closeDetailsModal(e) {
+        if (e.target === detailsModal) toggleDetailsModal(false);
     }
 
     function syncSortModalToConfig() {
@@ -1341,7 +1460,10 @@
                     <span class="stat-tag">${wtDisplay}</span>
                     <span class="stat-tag">${driveLabel}</span>
                 </div>
-                <div class="division">${car[COL.DIVISION]}</div>
+                <div class="car-footer">
+                    <div class="division">${car[COL.DIVISION]}</div>
+                    <button class="details-btn" onclick="openCarDetails(event, ${index})">Details</button>
+                </div>
             </div>
         `;
     }
@@ -1450,6 +1572,65 @@
         items.forEach(i => html += `<span class="mini-tag">${i}</span>`);
         html += `</div></div>`;
         return html;
+    }
+
+    function openCarDetails(event, index) {
+        event?.stopPropagation();
+        currentDetailsIndex = index;
+        renderCarDetails(index);
+        toggleDetailsModal(true);
+    }
+
+    function renderCarDetails(index) {
+        const car = currentCarData[index];
+        if (!car) return;
+        const title = `${car[COL.YEAR]} ${car[COL.MAKE]} ${car[COL.MODEL]}`;
+        detailsTitle.textContent = title;
+
+        const wtValue = toNumber(car[COL.WEIGHT]);
+        const hpValue = toNumber(car[COL.HP]);
+        const piValue = toNumber(car[COL.PI]);
+        const piClass = car[COL.CLASS];
+        const driveLabel = getDriveLabel(car[COL.DRIVE]);
+        const divisionLabel = car[COL.DIVISION] || "Unknown";
+
+        const wtDisplay = wtValue === null ? "Unknown" : formatWeight(wtValue);
+        const hpDisplay = hpValue === null ? "Unknown" : formatPower(hpValue);
+        const piDisplay = formatPiBadge(piValue, piClass);
+
+        detailsSummary.innerHTML = `
+            <div class="modal-section-title">Summary</div>
+            <div class="car-stats">
+                <span class="pi-badge">${piDisplay}</span>
+                <span class="stat-tag">${hpDisplay}</span>
+                <span class="stat-tag">${wtDisplay}</span>
+                <span class="stat-tag">${driveLabel}</span>
+                <span class="stat-tag">${divisionLabel}</span>
+            </div>
+        `;
+
+        const detailItems = activeDataset.columns.map((label, colIndex) => {
+            const rawValue = car[colIndex];
+            let displayValue = rawValue === null || rawValue === undefined || String(rawValue).trim() === ""
+                ? "Unknown"
+                : rawValue;
+            if (colIndex === COL.HP) {
+                const parsed = toNumber(rawValue);
+                displayValue = parsed === null ? "Unknown" : formatPower(parsed);
+            }
+            if (colIndex === COL.WEIGHT) {
+                const parsed = toNumber(rawValue);
+                displayValue = parsed === null ? "Unknown" : formatWeight(parsed);
+            }
+            return `
+                <div class="detail-item">
+                    <div class="detail-label">${label}</div>
+                    <div class="detail-value">${displayValue}</div>
+                </div>
+            `;
+        }).join("");
+
+        detailsGrid.innerHTML = detailItems;
     }
 
     // Run
