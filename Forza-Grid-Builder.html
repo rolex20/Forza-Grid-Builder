@@ -208,7 +208,38 @@
             font-size: 0.8rem;
             color: #888;
             font-style: italic;
+        }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
             margin-top: auto;
+        }
+
+        .details-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #f5f5f5;
+            font-weight: 800;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: border-color 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+
+        .details-btn:hover,
+        .details-btn:focus {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 0 2px rgba(227, 255, 0, 0.15);
+            outline: none;
         }
 
         /* --- Floating Action Bar --- */
@@ -272,6 +303,16 @@
             border: 1px solid #444;
             overflow: hidden;
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+
+        .details-modal {
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .details-modal .modal-body {
+            overflow-y: auto;
         }
 
         .modal-header {
@@ -497,6 +538,50 @@
 
         .no-cars-msg { text-align: center; color: #666; margin-top: 50px; font-style: italic; }
 
+        .details-fields {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .details-field {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #1b1b1b;
+            font-size: 0.85rem;
+        }
+
+        .details-field-label {
+            color: var(--text-sub);
+        }
+
+        .details-field-value {
+            text-align: right;
+            color: var(--text-main);
+            word-break: break-word;
+        }
+
+        .details-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .details-division {
+            margin-top: 4px;
+        }
+
+        @media (min-width: 720px) {
+            .details-fields {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -608,6 +693,17 @@
     </div>
 </div>
 
+<!-- Details Modal -->
+<div class="modal-overlay" id="detailsModal" onclick="closeDetailsModal(event)">
+    <div class="modal details-modal">
+        <div class="modal-header">
+            <div class="modal-title" id="detailsTitle">Car Details</div>
+            <button class="modal-close" onclick="toggleDetailsModal(false)">×</button>
+        </div>
+        <div class="modal-body" id="detailsBody"></div>
+    </div>
+</div>
+
 <script>
     // --- DATA START ---
     const DATASETS = [
@@ -715,6 +811,7 @@
     let activeModalTab = "restrictions";
     let matchesFilter = "all";
     let matchesSearchQuery = "";
+    let currentDetailsIndex = null;
     let sortConfig = {
         primary: { field: null, dir: "desc" },
         secondary: { field: null, dir: "desc" }
@@ -748,6 +845,9 @@
     const modalViewMatches = document.getElementById('modalViewMatches');
     const modalTabRestrictions = document.getElementById('modalTabRestrictions');
     const modalTabMatches = document.getElementById('modalTabMatches');
+    const detailsModal = document.getElementById('detailsModal');
+    const detailsTitle = document.getElementById('detailsTitle');
+    const detailsBody = document.getElementById('detailsBody');
 
     // --- INITIALIZATION ---
     function init() {
@@ -962,7 +1062,10 @@
                     <span class="stat-tag">${wtDisplay}</span>
                     <span class="stat-tag">${driveLabel}</span>
                 </div>
-                <div class="division">${car[COL.DIVISION]}</div>
+                <div class="card-footer">
+                    <div class="division">${car[COL.DIVISION]}</div>
+                    <button type="button" class="details-btn" title="Details" aria-label="Details" onclick="openCarDetails(event, ${index})">!</button>
+                </div>
             `;
             
             carContainer.appendChild(card);
@@ -999,6 +1102,9 @@
         updateUnitToggle();
         renderGrid();
         if (resultModal.classList.contains('open')) analyzeGrid(true); // Refresh modal if open
+        if (detailsModal.classList.contains('open') && currentDetailsIndex !== null) {
+            renderCarDetails(currentDetailsIndex);
+        }
     }
 
     function toggleSelection(index) {
@@ -1077,6 +1183,90 @@
 
     function closeSortModal(e) {
         if (e.target === sortModal) toggleSortModal(false);
+    }
+
+    function toggleDetailsModal(show) {
+        if (show) {
+            detailsModal.classList.add('open');
+        } else {
+            detailsModal.classList.remove('open');
+            currentDetailsIndex = null;
+        }
+    }
+
+    function closeDetailsModal(e) {
+        if (e.target === detailsModal) toggleDetailsModal(false);
+    }
+
+    function openCarDetails(event, index) {
+        event.preventDefault();
+        event.stopPropagation();
+        currentDetailsIndex = index;
+        renderCarDetails(index);
+        toggleDetailsModal(true);
+    }
+
+    function renderCarDetails(index) {
+        const car = currentCarData[index];
+        if (!car) return;
+        const year = car[COL.YEAR];
+        const make = car[COL.MAKE];
+        const model = car[COL.MODEL];
+        const piValue = toNumber(car[COL.PI]);
+        const piClass = car[COL.CLASS];
+        const hpValue = toNumber(car[COL.HP]);
+        const wtValue = toNumber(car[COL.WEIGHT]);
+        const driveLabel = getDriveLabel(car[COL.DRIVE]);
+        const piClassName = piClass && String(piClass).trim() ? `pi-${String(piClass).trim()}` : '';
+        const piDisplay = formatPiBadge(piValue, piClass);
+        const hpDisplay = hpValue === null ? "Unknown" : formatPower(hpValue);
+        const wtDisplay = wtValue === null ? "Unknown" : formatWeight(wtValue);
+        const division = car[COL.DIVISION] || "—";
+
+        detailsTitle.textContent = `${year} ${make} ${model}`;
+
+        const fieldsHtml = activeDataset.columns.map((label, colIndex) => {
+            let rawValue = car[colIndex];
+            let displayValue = rawValue;
+            if (colIndex === COL.HP) {
+                const hpNumber = toNumber(rawValue);
+                displayValue = hpNumber === null ? "—" : formatPower(hpNumber);
+            } else if (colIndex === COL.WEIGHT) {
+                const wtNumber = toNumber(rawValue);
+                displayValue = wtNumber === null ? "—" : formatWeight(wtNumber);
+            } else if (colIndex === COL.PI) {
+                const piNumber = toNumber(rawValue);
+                displayValue = piNumber === null ? "—" : `<span class="pi-badge ${piClassName}">${formatPiBadge(piNumber, car[COL.CLASS])}</span>`;
+            } else if (colIndex === COL.DRIVE) {
+                displayValue = getDriveLabel(rawValue);
+            } else if (rawValue === null || rawValue === undefined || String(rawValue).trim() === "") {
+                displayValue = "—";
+            }
+            const safeLabel = label || "Field";
+            return `
+                <div class="details-field">
+                    <div class="details-field-label">${safeLabel}</div>
+                    <div class="details-field-value">${displayValue}</div>
+                </div>
+            `;
+        }).join("");
+
+        detailsBody.innerHTML = `
+            <div class="modal-section">
+                <div class="modal-section-title">Summary</div>
+                <div class="details-summary">
+                    <span class="pi-badge ${piClassName}">${piDisplay}</span>
+                    <span class="stat-tag">${hpDisplay}</span>
+                    <span class="stat-tag">${wtDisplay}</span>
+                    <span class="stat-tag">${driveLabel}</span>
+                </div>
+                <div class="division details-division">${division}</div>
+            </div>
+            <div class="modal-section">
+                <div class="modal-section-title">All Details</div>
+                <div class="details-fields">${fieldsHtml}</div>
+            </div>
+        `;
     }
 
     function syncSortModalToConfig() {
@@ -1341,7 +1531,10 @@
                     <span class="stat-tag">${wtDisplay}</span>
                     <span class="stat-tag">${driveLabel}</span>
                 </div>
-                <div class="division">${car[COL.DIVISION]}</div>
+                <div class="card-footer">
+                    <div class="division">${car[COL.DIVISION]}</div>
+                    <button type="button" class="details-btn" title="Details" aria-label="Details" onclick="openCarDetails(event, ${index})">!</button>
+                </div>
             </div>
         `;
     }
