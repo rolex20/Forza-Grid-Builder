@@ -137,6 +137,9 @@
             flex-direction: column;
             gap: 8px;
             scroll-margin-top: 90px;
+            /* Performance: skip layout/paint for offscreen cards */
+            content-visibility: auto;
+            contain-intrinsic-size: auto 180px;
         }
 
         .car-card.selected {
@@ -1113,8 +1116,11 @@
         } else {
             selectedIndices.add(index);
         }
+        const card = document.getElementById(`car-idx-${index}`);
+        if (card) {
+            card.classList.toggle('selected', selectedIndices.has(index));
+        }
         updateFab();
-        renderGrid(); // Re-render to show selection state
     }
 
     function resetGrid() {
