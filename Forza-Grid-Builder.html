@@ -136,6 +136,7 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
+            scroll-margin-top: 90px;
         }
 
         .car-card.selected {
@@ -233,7 +234,8 @@
 
         .fab-bar.hidden { bottom: -100px; }
 
-        .fab-count { font-weight: bold; color: white; }
+        .fab-count { font-weight: bold; color: white; display: flex; align-items: center; gap: 6px; }
+        .fab-sub { font-size: 0.75rem; color: var(--text-sub); }
         .fab-btn {
             background: var(--accent);
             color: black;
@@ -285,6 +287,71 @@
         .modal-close { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
 
         .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+
+        .modal-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            background: #1e1e1e;
+        }
+
+        .modal-section-title {
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 90px 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .form-label { color: var(--text-sub); font-size: 0.9rem; }
+
+        .form-select, .form-btn {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: white;
+            padding: 8px 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .form-select:focus { border-color: var(--accent); outline: none; }
+
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .form-btn {
+            cursor: pointer;
+            font-weight: 700;
+        }
+
+        .form-btn.primary {
+            background: var(--accent);
+            color: black;
+            border-color: var(--accent);
+        }
+
+        .form-btn.secondary {
+            background: #2a2a2a;
+            color: var(--text-sub);
+        }
+
+        .modal-note {
+            font-size: 0.8rem;
+            color: var(--text-sub);
+        }
 
         .modal-tabs {
             display: flex;
@@ -445,6 +512,7 @@
         <option value="fm7">FM7</option>
     </select>
     <input type="text" id="searchInput" placeholder="Search Make, Model, Div..." onkeyup="filterCars()">
+    <button class="btn-icon" id="sortBtn" onclick="toggleSortModal(true)" title="Sort / Jump">⇅</button>
     <button class="btn-icon" id="favBtn" onclick="toggleFavFilter()" title="Favorites Only">★</button>
     <button class="btn-icon" onclick="resetGrid()" title="Clear Selection">↺</button>
 </div>
@@ -455,8 +523,67 @@
 
 <!-- Floating Bar -->
 <div class="fab-bar hidden" id="fabBar">
-    <div class="fab-count"><span id="countValue">0</span> Cars</div>
+    <div class="fab-count"><span id="countValue">0</span> Cars <span class="fab-sub" id="countSub"></span></div>
     <button class="fab-btn" onclick="analyzeGrid()">Event Setup</button>
+</div>
+
+<!-- Sort Modal -->
+<div class="modal-overlay" id="sortModal" onclick="closeSortModal(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Sort &amp; Jump</div>
+            <button class="modal-close" onclick="toggleSortModal(false)">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-section">
+                <div class="modal-section-title">Sorting</div>
+                <div class="form-row">
+                    <div class="form-label">Primary</div>
+                    <select class="form-select" id="sortPrimaryField">
+                        <option value="">None</option>
+                        <option value="pi">PI</option>
+                        <option value="hp">HP</option>
+                        <option value="weight">Weight</option>
+                        <option value="division">Division</option>
+                        <option value="year">Year</option>
+                        <option value="maker">Maker</option>
+                    </select>
+                    <select class="form-select" id="sortPrimaryDir">
+                        <option value="desc">Desc</option>
+                        <option value="asc">Asc</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-label">Secondary</div>
+                    <select class="form-select" id="sortSecondaryField">
+                        <option value="">None</option>
+                        <option value="pi">PI</option>
+                        <option value="hp">HP</option>
+                        <option value="weight">Weight</option>
+                        <option value="division">Division</option>
+                        <option value="year">Year</option>
+                        <option value="maker">Maker</option>
+                    </select>
+                    <select class="form-select" id="sortSecondaryDir">
+                        <option value="desc">Desc</option>
+                        <option value="asc">Asc</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button class="form-btn secondary" onclick="clearSort()">Clear</button>
+                    <button class="form-btn primary" onclick="applySortFromModal()">Apply</button>
+                </div>
+            </div>
+            <div class="modal-section" id="jumpSection">
+                <div class="modal-section-title" id="jumpLabel">Jump to maker</div>
+                <div class="form-row" style="grid-template-columns: 1fr auto;">
+                    <select class="form-select" id="jumpSelect"></select>
+                    <button class="form-btn primary" onclick="jumpToGroupFromModal()">Jump</button>
+                </div>
+                <div class="modal-note" id="jumpNote">Set Primary sort to Maker or Division to enable Jump.</div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Results Modal -->
@@ -569,6 +696,7 @@
     // --- DATA END ---
 
     const DATASET_STORAGE_KEY = "fgb.datasetId";
+    const UNITS_STORAGE_KEY = "fgb.units";
     let currentDatasetId = localStorage.getItem(DATASET_STORAGE_KEY) || DATASETS[0].id;
     if (!DATASET_BY_ID[currentDatasetId]) {
         currentDatasetId = DATASETS[0].id;
@@ -587,15 +715,34 @@
     let activeModalTab = "restrictions";
     let matchesFilter = "all";
     let matchesSearchQuery = "";
+    let sortConfig = {
+        primary: { field: null, dir: "desc" },
+        secondary: { field: null, dir: "desc" }
+    };
+    let cachedVisibleKey = null;
+    let cachedVisibleIndices = null;
+    let cachedJumpMap = null;
+    const sortCollator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
 
     // DOM Elements
     const carContainer = document.getElementById('carContainer');
     const fabBar = document.getElementById('fabBar');
     const countValue = document.getElementById('countValue');
+    const countSub = document.getElementById('countSub');
     const searchInput = document.getElementById('searchInput');
     const favBtn = document.getElementById('favBtn');
     const unitToggle = document.getElementById('unitToggle');
     const datasetSelect = document.getElementById('datasetSelect');
+    const sortBtn = document.getElementById('sortBtn');
+    const sortModal = document.getElementById('sortModal');
+    const sortPrimaryField = document.getElementById('sortPrimaryField');
+    const sortPrimaryDir = document.getElementById('sortPrimaryDir');
+    const sortSecondaryField = document.getElementById('sortSecondaryField');
+    const sortSecondaryDir = document.getElementById('sortSecondaryDir');
+    const jumpSelect = document.getElementById('jumpSelect');
+    const jumpSection = document.getElementById('jumpSection');
+    const jumpLabel = document.getElementById('jumpLabel');
+    const jumpNote = document.getElementById('jumpNote');
     const resultModal = document.getElementById('resultModal');
     const modalViewRestrictions = document.getElementById('modalViewRestrictions');
     const modalViewMatches = document.getElementById('modalViewMatches');
@@ -605,6 +752,17 @@
     // --- INITIALIZATION ---
     function init() {
         datasetSelect.value = currentDatasetId;
+        const storedUnits = localStorage.getItem(UNITS_STORAGE_KEY);
+        if (storedUnits === "metric") {
+            isImperial = false;
+        } else if (storedUnits === "imperial") {
+            isImperial = true;
+        }
+        updateUnitToggle();
+        sortPrimaryField.addEventListener('change', refreshJumpSectionFromModal);
+        sortPrimaryDir.addEventListener('change', refreshJumpSectionFromModal);
+        sortSecondaryField.addEventListener('change', refreshJumpSectionFromModal);
+        sortSecondaryDir.addEventListener('change', refreshJumpSectionFromModal);
         renderGrid();
     }
 
@@ -645,19 +803,135 @@
         localStorage.setItem(DATASET_STORAGE_KEY, currentDatasetId);
     }
 
+    function invalidateVisibleCache() {
+        cachedVisibleKey = null;
+        cachedVisibleIndices = null;
+        cachedJumpMap = null;
+    }
+
+    function normalizeStringSortValue(value) {
+        if (value === null || value === undefined) return null;
+        const trimmed = String(value).trim();
+        if (!trimmed || trimmed.toLowerCase() === "unknown") {
+            return null;
+        }
+        return trimmed;
+    }
+
+    function getFieldValue(index, field) {
+        const car = currentCarData[index];
+        if (!car) return null;
+        if (field === "pi") return toNumber(car[COL.PI]);
+        if (field === "hp") return toNumber(car[COL.HP]);
+        if (field === "weight") return toNumber(car[COL.WEIGHT]);
+        if (field === "year") return toNumber(car[COL.YEAR]);
+        if (field === "division") return normalizeStringSortValue(car[COL.DIVISION]);
+        if (field === "maker") return normalizeStringSortValue(car[COL.MAKE]);
+        return null;
+    }
+
+    function compareValues(aValue, bValue, dir) {
+        const aUnknown = aValue === null || aValue === undefined;
+        const bUnknown = bValue === null || bValue === undefined;
+        if (aUnknown && bUnknown) return 0;
+        if (aUnknown) return 1;
+        if (bUnknown) return -1;
+        let result = 0;
+        if (typeof aValue === "number" && typeof bValue === "number") {
+            result = aValue - bValue;
+        } else {
+            result = sortCollator.compare(String(aValue), String(bValue));
+        }
+        if (result === 0) return 0;
+        return dir === "asc" ? result : -result;
+    }
+
+    function buildVisibleSortedIndices(config) {
+        const indices = currentCarData.map((_, idx) => idx);
+        const filtered = indices.filter((idx) => {
+            const car = currentCarData[idx];
+            const searchStr = (car[COL.MAKE] + " " + car[COL.MODEL] + " " + car[COL.DIVISION]).toLowerCase();
+            if (searchQuery && !searchStr.includes(searchQuery)) return false;
+            if (showFavOnly && car[COL.IS_FAV] !== "yes") return false;
+            return true;
+        });
+
+        if (!config.primary.field) {
+            return filtered;
+        }
+
+        const primaryField = config.primary.field;
+        const primaryDir = config.primary.dir;
+        const secondaryField = config.secondary.field;
+        const secondaryDir = config.secondary.dir;
+
+        return filtered.slice().sort((a, b) => {
+            const primaryResult = compareValues(
+                getFieldValue(a, primaryField),
+                getFieldValue(b, primaryField),
+                primaryDir
+            );
+            if (primaryResult !== 0) return primaryResult;
+            if (secondaryField) {
+                const secondaryResult = compareValues(
+                    getFieldValue(a, secondaryField),
+                    getFieldValue(b, secondaryField),
+                    secondaryDir
+                );
+                if (secondaryResult !== 0) return secondaryResult;
+            }
+            return a - b;
+        });
+    }
+
+    function buildJumpMap(indices, field) {
+        const map = new Map();
+        indices.forEach((idx) => {
+            const car = currentCarData[idx];
+            const rawValue = field === "maker" ? car[COL.MAKE] : car[COL.DIVISION];
+            const trimmed = rawValue && String(rawValue).trim();
+            const label = trimmed ? trimmed : "Unknown";
+            if (!map.has(label)) {
+                map.set(label, idx);
+            }
+        });
+        return map;
+    }
+
+    function getVisibleSortedIndices() {
+        const primaryField = sortConfig.primary.field || "none";
+        const primaryDir = sortConfig.primary.dir;
+        const secondaryField = sortConfig.secondary.field || "none";
+        const secondaryDir = sortConfig.secondary.dir;
+        const cacheKey = `${currentDatasetId}|${showFavOnly}|${searchQuery}|${primaryField}:${primaryDir}|${secondaryField}:${secondaryDir}`;
+        if (cacheKey === cachedVisibleKey && cachedVisibleIndices) {
+            return cachedVisibleIndices;
+        }
+        const indices = buildVisibleSortedIndices(sortConfig);
+        cachedVisibleKey = cacheKey;
+        cachedVisibleIndices = indices;
+        cachedJumpMap = null;
+        if (sortConfig.primary.field === "maker" || sortConfig.primary.field === "division") {
+            cachedJumpMap = buildJumpMap(indices, sortConfig.primary.field);
+        }
+        return indices;
+    }
+
+    function getJumpMapForConfig(config) {
+        const indices = buildVisibleSortedIndices(config);
+        if (config.primary.field === "maker" || config.primary.field === "division") {
+            return buildJumpMap(indices, config.primary.field);
+        }
+        return new Map();
+    }
+
     // --- RENDER LOGIC ---
     function renderGrid() {
         carContainer.innerHTML = "";
-        
-        currentCarData.forEach((car, index) => {
-            // Filter: Search
-            const searchStr = (car[COL.MAKE] + " " + car[COL.MODEL] + " " + car[COL.DIVISION]).toLowerCase();
-            if (searchQuery && !searchStr.includes(searchQuery)) return;
 
-            // Filter: Favorites
-            if (showFavOnly && car[COL.IS_FAV] !== "yes") return;
-
-            // Values
+        const orderedIndices = getVisibleSortedIndices();
+        orderedIndices.forEach((index) => {
+            const car = currentCarData[index];
             const wtValue = toNumber(car[COL.WEIGHT]);
             const hpValue = toNumber(car[COL.HP]);
             const piValue = toNumber(car[COL.PI]);
@@ -675,6 +949,7 @@
             const piClassName = piClass && String(piClass).trim() ? `pi-${String(piClass).trim()}` : '';
             card.className = `car-card ${isSelected ? 'selected' : ''} ${piClassName}`;
             card.onclick = () => toggleSelection(index);
+            card.id = `car-idx-${index}`;
 
             card.innerHTML = `
                 <div class="car-header">
@@ -694,7 +969,7 @@
         });
 
         // Update empty state if needed
-        if (carContainer.innerHTML === "") {
+        if (orderedIndices.length === 0) {
             carContainer.innerHTML = `<div class="no-cars-msg">No cars found matching filters.</div>`;
         }
     }
@@ -703,18 +978,25 @@
     function filterCars() {
         searchQuery = searchInput.value.toLowerCase();
         renderGrid();
+        updateFab();
     }
 
     function toggleFavFilter() {
         showFavOnly = !showFavOnly;
         favBtn.classList.toggle('active', showFavOnly);
         renderGrid();
+        updateFab();
+    }
+
+    function updateUnitToggle() {
+        unitToggle.innerHTML = isImperial ? 'Metric / <b>Imperial</b>' : '<b>Metric</b> / Imperial';
+        unitToggle.classList.toggle('active', !isImperial);
     }
 
     function toggleUnits() {
         isImperial = !isImperial;
-        unitToggle.innerHTML = isImperial ? 'Metric / <b>Imperial</b>' : '<b>Metric</b> / Imperial';
-        unitToggle.classList.toggle('active', !isImperial); // visual cue
+        localStorage.setItem(UNITS_STORAGE_KEY, isImperial ? "imperial" : "metric");
+        updateUnitToggle();
         renderGrid();
         if (resultModal.classList.contains('open')) analyzeGrid(true); // Refresh modal if open
     }
@@ -738,6 +1020,9 @@
     function handleDatasetChange(datasetId) {
         setActiveDataset(datasetId);
         selectedIndices.clear();
+        searchQuery = "";
+        searchInput.value = "";
+        invalidateVisibleCache();
         updateFab();
         renderGrid();
         if (resultModal.classList.contains('open')) {
@@ -750,6 +1035,16 @@
 
     function updateFab() {
         countValue.innerText = selectedIndices.size;
+        const visibleIndices = getVisibleSortedIndices();
+        const visibleSelected = visibleIndices.reduce((count, idx) => {
+            return count + (selectedIndices.has(idx) ? 1 : 0);
+        }, 0);
+        const hasFilters = searchQuery !== "" || showFavOnly;
+        if (hasFilters && visibleSelected !== selectedIndices.size) {
+            countSub.textContent = `· Visible: ${visibleSelected}`;
+        } else {
+            countSub.textContent = "";
+        }
         if (selectedIndices.size > 0) {
             fabBar.classList.remove('hidden');
         } else {
@@ -768,6 +1063,99 @@
 
     function closeModal(e) {
         if (e.target === resultModal) toggleModal(false);
+    }
+
+    function toggleSortModal(show) {
+        if (show) {
+            sortModal.classList.add('open');
+            syncSortModalToConfig();
+            refreshJumpSectionFromModal();
+        } else {
+            sortModal.classList.remove('open');
+        }
+    }
+
+    function closeSortModal(e) {
+        if (e.target === sortModal) toggleSortModal(false);
+    }
+
+    function syncSortModalToConfig() {
+        sortPrimaryField.value = sortConfig.primary.field || "";
+        sortPrimaryDir.value = sortConfig.primary.dir;
+        sortSecondaryField.value = sortConfig.secondary.field || "";
+        sortSecondaryDir.value = sortConfig.secondary.dir;
+    }
+
+    function readSortConfigFromModal() {
+        const primaryField = sortPrimaryField.value || null;
+        const secondaryField = sortSecondaryField.value || null;
+        let secondary = secondaryField;
+        if (primaryField && secondaryField === primaryField) {
+            secondary = null;
+        }
+        return {
+            primary: { field: primaryField, dir: sortPrimaryDir.value },
+            secondary: { field: secondary, dir: sortSecondaryDir.value }
+        };
+    }
+
+    function applySortFromModal({ closeAfter = true } = {}) {
+        sortConfig = readSortConfigFromModal();
+        invalidateVisibleCache();
+        renderGrid();
+        updateFab();
+        sortBtn.classList.toggle('active', !!sortConfig.primary.field);
+        refreshJumpSectionFromModal();
+        if (closeAfter) {
+            toggleSortModal(false);
+        }
+    }
+
+    function clearSort() {
+        sortConfig = {
+            primary: { field: null, dir: "desc" },
+            secondary: { field: null, dir: "desc" }
+        };
+        invalidateVisibleCache();
+        renderGrid();
+        updateFab();
+        sortBtn.classList.remove('active');
+        syncSortModalToConfig();
+        refreshJumpSectionFromModal();
+    }
+
+    function refreshJumpSectionFromModal() {
+        const config = readSortConfigFromModal();
+        const jumpEnabled = config.primary.field === "maker" || config.primary.field === "division";
+        jumpSection.style.display = "flex";
+        jumpLabel.textContent = config.primary.field === "division" ? "Jump to division" : "Jump to maker";
+        jumpNote.style.display = jumpEnabled ? "none" : "block";
+        const jumpMap = jumpEnabled ? getJumpMapForConfig(config) : new Map();
+        jumpSelect.innerHTML = "";
+        if (jumpEnabled && jumpMap.size > 0) {
+            jumpSelect.disabled = false;
+            jumpMap.forEach((_, label) => {
+                const option = document.createElement('option');
+                option.value = label;
+                option.textContent = label;
+                jumpSelect.appendChild(option);
+            });
+        } else {
+            jumpSelect.disabled = true;
+        }
+    }
+
+    function jumpToGroupFromModal() {
+        const selectedLabel = jumpSelect.value;
+        if (!selectedLabel) return;
+        applySortFromModal({ closeAfter: false });
+        toggleSortModal(false);
+        const jumpMap = cachedJumpMap || new Map();
+        const targetIndex = jumpMap.get(selectedLabel);
+        if (targetIndex === undefined) return;
+        requestAnimationFrame(() => {
+            document.getElementById(`car-idx-${targetIndex}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
     }
 
     function mapEngineLoc(code) {
