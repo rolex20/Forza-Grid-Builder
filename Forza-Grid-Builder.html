@@ -213,6 +213,26 @@
             font-style: italic;
         }
 
+        .division-btn {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font: inherit;
+            font-style: italic;
+            cursor: pointer;
+        }
+
+        .division-btn:hover,
+        .division-btn:focus {
+            color: var(--text-main);
+        }
+
+        .division-btn:focus {
+            outline: 1px solid #333;
+            outline-offset: 2px;
+        }
+
         .card-footer {
             display: flex;
             align-items: center;
@@ -1064,7 +1084,7 @@
                     <span class="stat-tag">${driveLabel}</span>
                 </div>
                 <div class="card-footer">
-                    <div class="division">${car[COL.DIVISION]}</div>
+                    <button type="button" class="division division-btn" title="Filter by Division" onclick="applyDivisionFilter(event, ${index})">${car[COL.DIVISION]}</button>
                     <button type="button" class="details-btn" title="Details" aria-label="Details" onclick="openCarDetails(event, ${index})">ℹ</button>
                 </div>
             `;
@@ -1083,6 +1103,26 @@
         searchQuery = searchInput.value.toLowerCase();
         renderGrid();
         updateFab();
+    }
+
+    function applyDivisionFilter(event, index) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const car = currentCarData[index];
+        if (!car) return;
+
+        const rawDivision = car[COL.DIVISION];
+        const division = rawDivision === null || rawDivision === undefined ? "" : String(rawDivision).trim();
+        if (!division) return;
+
+        searchInput.value = "";
+        searchInput.value = division;
+
+        filterCars();
+
+        try { searchInput.focus({ preventScroll: true }); }
+        catch (e) { searchInput.focus(); }
     }
 
     function toggleFavFilter() {
