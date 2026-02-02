@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Forza Grid Builder v3</title>
+    <title>Forza Grid Builder v3.1</title>
     <style>
         :root {
             --bg-core: #0f0f0f;
@@ -213,20 +213,20 @@
             font-style: italic;
         }
 
-        .division-btn {
-            background: transparent;
-            border: none;
-            padding: 0;
-            color: inherit;
-            font: inherit;
-            font-style: italic;
-            cursor: pointer;
-        }
+.division-btn {
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  line-height: 1.1;
+}
 
-        .division-btn:hover,
-        .division-btn:focus {
-            color: var(--text-main);
-        }
+.division-btn:hover,
+.division-btn:focus {
+  background: rgba(227,255,0,0.08);
+  border-color: rgba(227,255,0,0.35);
+}
+
 
         .division-btn:focus {
             outline: 1px solid #333;
@@ -603,6 +603,21 @@
             }
         }
 
+.search-wrap { position: relative; }
+.search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 6px;
+}
+.search-clear:hover, .search-clear:focus { color: var(--text-main); }
+
     </style>
 </head>
 <body>
@@ -617,7 +632,12 @@
         <option value="fm2023">FM-2023</option>
         <option value="fm7">FM7</option>
     </select>
+
+<div class="search-wrap">
     <input type="text" id="searchInput" placeholder="Search Make, Model, Div..." onkeyup="filterCars()">
+  <button type="button" class="search-clear" title="Clear" onclick="clearSearch(event)">×</button>
+</div>
+	
     <button class="btn-icon" id="sortBtn" onclick="toggleSortModal(true)" title="Sort / Jump">⇅</button>
     <button class="btn-icon" id="favBtn" onclick="toggleFavFilter()" title="Favorites Only">★</button>
     <button class="btn-icon" onclick="resetGrid()" title="Clear Selection">↺</button>
@@ -848,6 +868,16 @@
     const countValue = document.getElementById('countValue');
     const countSub = document.getElementById('countSub');
     const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    searchInput.value = "";
+    filterCars();
+    // Optional: keep focus
+    try { searchInput.focus({ preventScroll: true }); }
+    catch (err) { searchInput.focus(); }
+  }
+});
+	
     const favBtn = document.getElementById('favBtn');
     const unitToggle = document.getElementById('unitToggle');
     const datasetSelect = document.getElementById('datasetSelect');
@@ -1119,10 +1149,14 @@
         searchInput.value = "";
         searchInput.value = division;
 
-        filterCars();
+filterCars();
 
-        try { searchInput.focus({ preventScroll: true }); }
-        catch (e) { searchInput.focus(); }
+// Make it easy to clear/replace: focus + select all text
+try { searchInput.focus({ preventScroll: true }); }
+catch (e) { searchInput.focus(); }
+
+searchInput.select();
+
     }
 
     function toggleFavFilter() {
@@ -1688,6 +1722,15 @@
         html += `</div></div>`;
         return html;
     }
+	
+function clearSearch(e) {
+  if (e) { e.preventDefault(); e.stopPropagation(); }
+  searchInput.value = "";
+  filterCars();
+  try { searchInput.focus({ preventScroll: true }); }
+  catch (err) { searchInput.focus(); }
+}
+	
 
     // Run
     init();
