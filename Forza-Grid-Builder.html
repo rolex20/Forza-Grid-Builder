@@ -1250,8 +1250,7 @@ searchInput.select();
     function handleDatasetChange(datasetId) {
         setActiveDataset(datasetId);
         selectedIndices.clear();
-        searchQuery = "";
-        searchInput.value = "";
+        searchQuery = searchInput.value.toLowerCase();
         invalidateVisibleCache();
         updateFab();
         renderGrid();
