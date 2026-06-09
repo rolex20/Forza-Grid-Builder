@@ -98,6 +98,12 @@
             border-color: var(--accent);
         }
 
+        .btn-icon.cross-game {
+            color: #ff073a;
+            border-color: #ff073a;
+            box-shadow: 0 0 12px rgba(255, 7, 58, 0.65);
+        }
+
         .dataset-select {
             background: #2a2a2a;
             border: 1px solid #444;
@@ -415,6 +421,43 @@
             color: var(--text-sub);
         }
 
+        .last-game-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 50vh;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .last-game-option {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 10px;
+            background: #181818;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        .last-game-option input {
+            accent-color: var(--accent);
+            width: 18px;
+            height: 18px;
+        }
+
+        .last-game-label {
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .last-game-count {
+            color: var(--text-sub);
+            font-size: 0.8rem;
+        }
+
         .modal-tabs {
             display: flex;
             gap: 10px;
@@ -639,6 +682,7 @@
   <button type="button" class="search-clear" title="Clear" onclick="clearSearch(event)">×</button>
 </div>
 	
+    <button class="btn-icon" id="lastGameBtn" onclick="toggleLastGameModal(true)" title="Last Game Filter">LG</button>
     <button class="btn-icon" id="sortBtn" onclick="toggleSortModal(true)" title="Sort / Jump">⇅</button>
     <button class="btn-icon" id="favBtn" onclick="toggleFavFilter()" title="Favorites Only">★</button>
     <button class="btn-icon" onclick="resetGrid()" title="Clear Selection">↺</button>
@@ -652,6 +696,27 @@
 <div class="fab-bar hidden" id="fabBar">
     <div class="fab-count"><span id="countValue">0</span> Cars <span class="fab-sub" id="countSub"></span></div>
     <button class="fab-btn" onclick="analyzeGrid()">Event Setup</button>
+</div>
+
+<!-- Last Game Modal -->
+<div class="modal-overlay" id="lastGameModal" onclick="closeLastGameModal(event)">
+    <div class="modal">
+        <div class="modal-header">
+            <div class="modal-title">Last Game Filter</div>
+            <button class="modal-close" onclick="toggleLastGameModal(false)">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="modal-section">
+                <div class="modal-section-title">Last Game</div>
+                <div class="last-game-options" id="lastGameOptions"></div>
+                <div class="modal-note" id="lastGameNote"></div>
+                <div class="form-actions">
+                    <button class="form-btn secondary" onclick="selectAllLastGames()">All</button>
+                    <button class="form-btn primary" onclick="resetLastGameFilter()">This Game</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Sort Modal -->
@@ -899,6 +964,8 @@ const carData = [["","Modern Hot Hatch",2016,"Abarth","695 Biposto","","","","",
     let matchesFilter = "all";
     let matchesSearchQuery = "";
     let currentDetailsIndex = null;
+    let lastGameFilter = new Set();
+    let lastGameOptions = [];
     let sortConfig = {
         primary: { field: null, dir: "desc" },
         secondary: { field: null, dir: "desc" }
@@ -927,6 +994,10 @@ searchInput.addEventListener("keydown", (e) => {
     const favBtn = document.getElementById('favBtn');
     const unitToggle = document.getElementById('unitToggle');
     const datasetSelect = document.getElementById('datasetSelect');
+    const lastGameBtn = document.getElementById('lastGameBtn');
+    const lastGameModal = document.getElementById('lastGameModal');
+    const lastGameOptionsEl = document.getElementById('lastGameOptions');
+    const lastGameNote = document.getElementById('lastGameNote');
     const sortBtn = document.getElementById('sortBtn');
     const sortModal = document.getElementById('sortModal');
     const sortPrimaryField = document.getElementById('sortPrimaryField');
@@ -960,7 +1031,9 @@ searchInput.addEventListener("keydown", (e) => {
         sortPrimaryDir.addEventListener('change', refreshJumpSectionFromModal);
         sortSecondaryField.addEventListener('change', refreshJumpSectionFromModal);
         sortSecondaryDir.addEventListener('change', refreshJumpSectionFromModal);
+        resetLastGameFilterState();
         renderGrid();
+        updateFab();
     }
 
     function toNumber(value) {
@@ -997,6 +1070,7 @@ searchInput.addEventListener("keydown", (e) => {
         activeDataset = nextDataset;
         currentCarData = activeDataset.carData;
         COL = activeDataset.COL;
+        resetLastGameFilterState();
         localStorage.setItem(DATASET_STORAGE_KEY, currentDatasetId);
     }
 
@@ -1004,6 +1078,72 @@ searchInput.addEventListener("keydown", (e) => {
         cachedVisibleKey = null;
         cachedVisibleIndices = null;
         cachedJumpMap = null;
+    }
+
+    function normalizeLastGameValue(value) {
+        if (value === null || value === undefined) return "Unknown";
+        const trimmed = String(value).trim();
+        return trimmed || "Unknown";
+    }
+
+    function getThisGameValue() {
+        return normalizeLastGameValue(COL.THIS_GAME);
+    }
+
+    function getLastGameValue(car) {
+        return normalizeLastGameValue(car[COL.LAST_GAME]);
+    }
+
+    function buildLastGameOptions() {
+        const values = Array.from(new Set(currentCarData.map(getLastGameValue)));
+        values.sort((a, b) => sortCollator.compare(a, b));
+        const thisGame = getThisGameValue();
+        if (!values.includes(thisGame)) {
+            values.unshift(thisGame);
+        }
+        return values;
+    }
+
+    function resetLastGameFilterState() {
+        lastGameOptions = buildLastGameOptions();
+        lastGameFilter = new Set([getThisGameValue()]);
+        updateLastGameButtonState();
+        renderLastGameFilterModal();
+        invalidateVisibleCache();
+    }
+
+    function getLastGameFilterKey() {
+        return Array.from(lastGameFilter).sort((a, b) => sortCollator.compare(a, b)).join("||");
+    }
+
+    function isDefaultLastGameFilter() {
+        const thisGame = getThisGameValue();
+        return lastGameFilter.size === 1 && lastGameFilter.has(thisGame);
+    }
+
+    function passesLastGameFilter(car) {
+        return !!car && lastGameFilter.has(getLastGameValue(car));
+    }
+
+    function getLastGameFilteredIndices() {
+        const indices = [];
+        currentCarData.forEach((car, index) => {
+            if (passesLastGameFilter(car)) {
+                indices.push(index);
+            }
+        });
+        return indices;
+    }
+
+    function getFilteredSelectedIndices() {
+        return Array.from(selectedIndices).filter((idx) => passesLastGameFilter(currentCarData[idx]));
+    }
+
+    function updateLastGameButtonState() {
+        if (!lastGameBtn) return;
+        const isDefault = isDefaultLastGameFilter();
+        lastGameBtn.classList.toggle('cross-game', !isDefault);
+        lastGameBtn.title = isDefault ? "Last Game Filter" : "Last Game Filter: cross-game";
     }
 
     function normalizeStringSortValue(value) {
@@ -1047,6 +1187,7 @@ searchInput.addEventListener("keydown", (e) => {
         const indices = currentCarData.map((_, idx) => idx);
         const filtered = indices.filter((idx) => {
             const car = currentCarData[idx];
+            if (!passesLastGameFilter(car)) return false;
             const searchStr = (car[COL.MAKE] + " " + car[COL.MODEL] + " " + car[COL.DIVISION]).toLowerCase();
             if (searchQuery && !searchStr.includes(searchQuery)) return false;
             if (showFavOnly && car[COL.IS_FAV] !== "yes") return false;
@@ -1100,7 +1241,7 @@ searchInput.addEventListener("keydown", (e) => {
         const primaryDir = sortConfig.primary.dir;
         const secondaryField = sortConfig.secondary.field || "none";
         const secondaryDir = sortConfig.secondary.dir;
-        const cacheKey = `${currentDatasetId}|${showFavOnly}|${searchQuery}|${primaryField}:${primaryDir}|${secondaryField}:${secondaryDir}`;
+        const cacheKey = `${currentDatasetId}|${getLastGameFilterKey()}|${showFavOnly}|${searchQuery}|${primaryField}:${primaryDir}|${secondaryField}:${secondaryDir}`;
         if (cacheKey === cachedVisibleKey && cachedVisibleIndices) {
             return cachedVisibleIndices;
         }
@@ -1263,18 +1404,19 @@ searchInput.select();
     }
 
     function updateFab() {
-        countValue.innerText = selectedIndices.size;
+        const scopedSelection = getFilteredSelectedIndices();
+        countValue.innerText = scopedSelection.length;
         const visibleIndices = getVisibleSortedIndices();
         const visibleSelected = visibleIndices.reduce((count, idx) => {
             return count + (selectedIndices.has(idx) ? 1 : 0);
         }, 0);
         const hasFilters = searchQuery !== "" || showFavOnly;
-        if (hasFilters && visibleSelected !== selectedIndices.size) {
+        if (hasFilters && visibleSelected !== scopedSelection.length) {
             countSub.textContent = `· Visible: ${visibleSelected}`;
         } else {
             countSub.textContent = "";
         }
-        if (selectedIndices.size > 0) {
+        if (scopedSelection.length > 0) {
             fabBar.classList.remove('hidden');
         } else {
             fabBar.classList.add('hidden');
@@ -1306,6 +1448,114 @@ searchInput.select();
 
     function closeSortModal(e) {
         if (e.target === sortModal) toggleSortModal(false);
+    }
+
+    function toggleLastGameModal(show) {
+        if (show) {
+            renderLastGameFilterModal();
+            lastGameModal.classList.add('open');
+        } else {
+            lastGameModal.classList.remove('open');
+        }
+    }
+
+    function closeLastGameModal(e) {
+        if (e.target === lastGameModal) toggleLastGameModal(false);
+    }
+
+    function renderLastGameFilterModal() {
+        if (!lastGameOptionsEl || !lastGameNote) return;
+        const counts = new Map();
+        currentCarData.forEach((car) => {
+            const value = getLastGameValue(car);
+            counts.set(value, (counts.get(value) || 0) + 1);
+        });
+
+        lastGameOptionsEl.innerHTML = "";
+        const thisGame = getThisGameValue();
+        lastGameOptions.forEach((value) => {
+            const option = document.createElement('label');
+            option.className = "last-game-option";
+
+            const input = document.createElement('input');
+            input.type = "checkbox";
+            input.checked = lastGameFilter.has(value);
+            input.addEventListener('change', () => setLastGameFilterValue(value, input.checked));
+
+            const label = document.createElement('span');
+            label.className = "last-game-label";
+            label.textContent = value;
+            if (value === thisGame) {
+                const tag = document.createElement('span');
+                tag.className = "mini-tag";
+                tag.textContent = "This";
+                label.appendChild(document.createTextNode(" "));
+                label.appendChild(tag);
+            }
+
+            const count = document.createElement('span');
+            count.className = "last-game-count";
+            count.textContent = counts.get(value) || 0;
+
+            option.appendChild(input);
+            option.appendChild(label);
+            option.appendChild(count);
+            lastGameOptionsEl.appendChild(option);
+        });
+
+        const activeCount = getLastGameFilteredIndices().length;
+        lastGameNote.textContent = `${activeCount} of ${currentCarData.length} cars active`;
+    }
+
+    function applyLastGameFilterChange() {
+        updateLastGameButtonState();
+        invalidateVisibleCache();
+        renderGrid();
+        updateFab();
+
+        if (resultModal.classList.contains('open')) {
+            const scopedSelection = getFilteredSelectedIndices();
+            if (scopedSelection.length === 0) {
+                currentRestrictions = null;
+                currentMatches = [];
+                modalViewRestrictions.innerHTML = `<div class="no-cars-msg">Select cars and run Event Setup to see restrictions.</div>`;
+                renderMatchesView(null);
+            } else {
+                currentRestrictions = computeRestrictionsFromSelection();
+                currentMatches = getMatchingIndices(currentRestrictions);
+                renderRestrictionsView(currentRestrictions);
+                renderMatchesView(currentRestrictions);
+            }
+        }
+
+        if (detailsModal.classList.contains('open') && currentDetailsIndex !== null) {
+            if (passesLastGameFilter(currentCarData[currentDetailsIndex])) {
+                renderCarDetails(currentDetailsIndex);
+            } else {
+                toggleDetailsModal(false);
+            }
+        }
+
+        renderLastGameFilterModal();
+    }
+
+    function setLastGameFilterValue(value, checked) {
+        if (checked) {
+            lastGameFilter.add(value);
+        } else {
+            lastGameFilter.delete(value);
+        }
+        applyLastGameFilterChange();
+    }
+
+    function resetLastGameFilter() {
+        lastGameFilter = new Set([getThisGameValue()]);
+        applyLastGameFilterChange();
+    }
+
+    function selectAllLastGames() {
+        lastGameFilter = new Set(lastGameOptions);
+        applyLastGameFilterChange();
     }
 
     function toggleDetailsModal(show) {
@@ -1516,7 +1766,7 @@ searchInput.select();
         const engines = new Set();
         const cylinders = new Set();
 
-        selectedIndices.forEach(idx => {
+        getFilteredSelectedIndices().forEach(idx => {
             const car = currentCarData[idx];
 
             // Numeric Stats
@@ -1603,6 +1853,8 @@ searchInput.select();
         const matches = [];
 
         currentCarData.forEach((car, index) => {
+            if (!passesLastGameFilter(car)) return;
+
             const year = toNumber(car[COL.YEAR]);
             const pi = toNumber(car[COL.PI]);
             const hp = toNumber(car[COL.HP]);
@@ -1738,7 +1990,7 @@ searchInput.select();
     }
 
     function analyzeGrid(preserveTab = false) {
-        if (selectedIndices.size === 0) return;
+        if (getFilteredSelectedIndices().length === 0) return;
 
         currentRestrictions = computeRestrictionsFromSelection();
         currentMatches = getMatchingIndices(currentRestrictions);
